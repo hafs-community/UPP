@@ -18,6 +18,7 @@
 !! -  21-04-06  Wen Meng - Initializing all allocated arrays
 !! -  21-04-16  Wen Meng - Initializing aextc55 and extc55 as 0. These
 !!                      two arrays are involved in GSL visibility computation.
+!! -  22-03-22  Wen Meng - Initializing pwat.
 !!
 !!   OUTPUT FILES:
 !!   - STDOUT  - RUN TIME STANDARD OUT.
@@ -969,6 +970,8 @@
       allocate(tetran(im,jsta_2l:jend_2u))
       allocate(tedir(im,jsta_2l:jend_2u))
       allocate(twa(im,jsta_2l:jend_2u))
+      allocate(fdnsst(im,jsta_2l:jend_2u))
+      allocate(pwat(im,jsta_2l:jend_2u))
 !Initialization
 !$omp parallel do private(i,j)
       do j=jsta_2l,jend_2u
@@ -1018,6 +1021,8 @@
           tetran(i,j)=spval
           tedir(i,j)=spval
           twa(i,j)=spval
+          fdnsst(i,j)=spval
+          pwat(i,j)=spval
         enddo
       enddo
 !
@@ -1255,7 +1260,9 @@
         allocate(dustallcb(im,jsta_2l:jend_2u))
         allocate(ssallcb(im,jsta_2l:jend_2u))
         allocate(dustpm(im,jsta_2l:jend_2u))
+        allocate(dustpm10(im,jsta_2l:jend_2u))	
         allocate(sspm(im,jsta_2l:jend_2u))
+	allocate(maod(im,jsta_2l:jend_2u))
 !Initialization
 !$omp parallel do private(i,j)
        do j=jsta_2l,jend_2u
@@ -1290,7 +1297,9 @@
            dustallcb(i,j)=spval
            ssallcb(i,j)=spval
            dustpm(i,j)=spval
+	   dustpm10(i,j)=spval
            sspm(i,j)=spval
+	   maod(i,j)=spval
          enddo
        enddo
       endif
