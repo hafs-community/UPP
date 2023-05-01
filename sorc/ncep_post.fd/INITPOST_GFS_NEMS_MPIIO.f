@@ -24,6 +24,7 @@
 !> 2016-07-21 | Jun Wang       | Change averaged field name with suffix
 !> 2019-07-24 | Li(Kate) Zhang | Merge and update NGAC UPP into FV3-Chem
 !> 2021-03-11 | Bo Cui         | Change local arrays to dimension (im,jsta:jend)
+!> 2022-09-22 | Li(Kate) Zhang | Remove duplicated initializations which have been done in ALLCOCATE_ALL.f
 !>
 !> @author Hui-Ya Chuang @date 2007-03-04
       SUBROUTINE INITPOST_GFS_NEMS_MPIIO(iostatusAER)
@@ -76,7 +77,7 @@
       use gridspec_mod, only: maptype, gridtype, latstart, latlast, lonstart, lonlast, cenlon,  &
               dxval, dyval, truelat2, truelat1, psmapf, cenlat
       use nemsio_module_mpi
-      use upp_physics, only: fpvsnew
+      use upp_physics, only: fpvsnew, caldiv, calgradps
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
       implicit none
 !
@@ -355,7 +356,8 @@
       
       print *,me,'max(gdlat)=', maxval(gdlat),  &
                  'max(gdlon)=', maxval(gdlon)
-      CALL EXCH(gdlat(1,JSTA_2L))
+      CALL EXCH(gdlat)
+      CALL EXCH(gdlon)
       print *,'after call EXCH,me=',me
 
 !$omp parallel do private(i,j,ip1)
@@ -1335,16 +1337,6 @@
 ! GFS output dust in nemsio (GOCART)
         dustcb=0.0
         dustallcb=0.0
-        do n=1,nbin_du
-          do l=1,lm
-!$omp parallel do private(i,j)
-            do j=jsta_2l,jend_2u
-              do i=1,im
-                dust(i,j,l,n) = spval
-              enddo
-            enddo
-          enddo
-        enddo
 !       DUST = SPVAL
         !VarName='du001'
         VarName='dust1'
@@ -1422,16 +1414,6 @@
 ! GFS output sea salt in nemsio (GOCART)
         sscb=0.0
         ssallcb=0.0
-        do n=1,nbin_ss
-          do l=1,lm
-!$omp parallel do private(i,j)
-            do j=jsta_2l,jend_2u
-              do i=1,im
-                salt(i,j,l,n) = spval
-              enddo
-            enddo
-          enddo
-        enddo
 !       SALT = SPVAL
         !VarName='ss001'
         VarName='seas1'
@@ -1510,16 +1492,6 @@
 
 ! GFS output black carbon in nemsio (GOCART)
         bccb=0.0
-        do n=1,nbin_bc
-          do l=1,lm
-!$omp parallel do private(i,j)
-            do j=jsta_2l,jend_2u
-              do i=1,im
-                soot(i,j,l,n) = spval
-              enddo
-            enddo
-          enddo
-        enddo
 !       SOOT = SPVAL
         !VarName='bcphobic'
         VarName='bc1'
@@ -1553,16 +1525,6 @@
 
         occb=0.0
 ! GFS output organic carbon in nemsio (GOCART)
-        do n=1,nbin_oc
-          do l=1,lm
-!$omp parallel do private(i,j)
-            do j=jsta_2l,jend_2u
-              do i=1,im
-                waso(i,j,l,n) = spval
-              enddo
-            enddo
-          enddo
-        enddo
 !       WASO = SPVAL
         !VarName='ocphobic'
         VarName='oc1'
@@ -1596,16 +1558,6 @@
 
 ! GFS output sulfate in nemsio (GOCART)
         sulfcb=0.0
-        do n=1,nbin_su
-          do l=1,lm
-!$omp parallel do private(i,j)
-            do j=jsta_2l,jend_2u
-              do i=1,im
-                suso(i,j,l,n) = spval
-              enddo
-            enddo
-          enddo
-        enddo
 !       SUSO = SPVAL
         !VarName='so4'
         VarName='sulf'
@@ -1626,16 +1578,6 @@
 
 ! GFS output pp25 in nemsio (GOCART)
         pp25cb=0.0
-        do n=1,nbin_su
-          do l=1,lm
-!$omp parallel do private(i,j)
-            do j=jsta_2l,jend_2u
-              do i=1,im
-                pp25(i,j,l,n) = spval
-              enddo
-            enddo
-          enddo
-        enddo
 !       PP25 = SPVAL
         !VarName='so4'
         VarName='pp25'
@@ -1654,16 +1596,6 @@
         end do ! do loop for l
 ! GFS output pp10 in nemsio (GOCART)
         pp10cb=0.0
-        do n=1,nbin_su
-          do l=1,lm
-!$omp parallel do private(i,j)
-            do j=jsta_2l,jend_2u
-              do i=1,im
-                pp10(i,j,l,n) = spval
-              enddo
-            enddo
-          enddo
-        enddo
 !       PP10 = SPVAL
         !VarName='so4'
         VarName='pp10'

@@ -13,6 +13,8 @@
 !> 2005-03-09 | H Chuang      | WRF Version
 !> 2005-07-07 | Binbin Zhou   | Add RSM   
 !> 2015-03-11 | S Moorthi     | Set sfcwind to spval if u10 and v10 are spvals for A grid and set gust to just wind (in GSM with nemsio, it appears u10 & v10 have spval)
+!> 2021-09-02 | Bo Cui        | Decompose UPP in X direction
+!> 2023-02-24 | Weizhong Zheng|  Revised calculation of wind gust for UFS applications
 !>   
 !> @author Geoff Manikin W/NP2 @date 1997-03-04
 
@@ -24,7 +26,7 @@
       use vrbls2d , only: u10h, v10h, u10,v10, fis
       use params_mod, only: d25, gi
       use ctlblk_mod, only: jsta, jend, spval, jsta_m, jend_m, num_procs, mpi_comm_comp, lm,&
-              modelname, im, jm, jsta_2l, jend_2u
+              modelname, im, jm, jsta_2l, jend_2u, ista, iend, ista_m, iend_m, ista_2l, iend_2u
       use gridspec_mod, only: gridtype
 
       implicit none
@@ -35,9 +37,9 @@
 !
 !     DECLARE VARIABLES.
 !     
-      INTEGER,intent(in) :: LPBL(IM,jsta_2l:jend_2u)
-      REAL,intent(in)    :: ZPBL(IM,jsta_2l:jend_2u)
-      REAL,intent(inout) :: GUST(IM,jsta_2l:jend_2u)
+      INTEGER,intent(in) :: LPBL(ista_2l:iend_2u,jsta_2l:jend_2u)
+      REAL,intent(in)    :: ZPBL(ista_2l:iend_2u,jsta_2l:jend_2u)
+      REAL,intent(inout) :: GUST(ista_2l:iend_2u,jsta_2l:jend_2u)
 
       integer I,J,IE,IW, L, K, ISTART, ISTOP, JSTART, JSTOP
       integer LMIN,LXXX,IERR
@@ -51,29 +53,29 @@
 !    
 !$omp parallel do private(i,j)
       DO J=JSTA,JEND
-        DO I=1,IM
+        DO I=ISTA,IEND
           GUST(I,J) = SPVAL 
         ENDDO
       ENDDO
       
       IF(gridtype == 'A') THEN
-        ISTART = 1
-        ISTOP  = IM
+        ISTART = ISTA
+        ISTOP  = IEND
         JSTART = JSTA
         JSTOP  = JEND
       ELSE
-        ISTART = 2
-        ISTOP  = IM-1
+        ISTART = ISTA_M
+        ISTOP  = IEND_M
         JSTART = JSTA_M
         JSTOP  = JEND_M
         if ( num_procs > 1 ) then
          !CALL EXCH(U10(1,jsta_2l))
          !CALL EXCH(V10(1,jsta_2l))
-         LMIN = max(1, minval(lpbl(1:im,jsta:jend)))
+         LMIN = max(1, minval(lpbl(ista:iend,jsta:jend)))
          CALL MPI_ALLREDUCE(LMIN,LXXX,1,MPI_INTEGER,MPI_MIN,MPI_COMM_COMP,IERR)
          DO L=LXXX,LM
-          CALL EXCH(UH(1,jsta_2l,L))
-          CALL EXCH(VH(1,jsta_2l,L))
+          CALL EXCH(UH(ista_2l,jsta_2l,L))
+          CALL EXCH(VH(ista_2l,jsta_2l,L))
          END DO 
         END IF 
       END IF
@@ -130,7 +132,7 @@
              else
                sfcwind = spval
              endif
-             if(MODELNAME == 'RAPR') then
+             if(MODELNAME == 'RAPR' .OR. MODELNAME == 'GFS' .OR. MODELNAME == 'FV3R') then
                ZSFC = ZINT(I,J,LM+1)
                L = LPBL(I,J)
 ! in RUC do 342 k=2,k1-1, where k1 - first level above PBLH
@@ -164,7 +166,7 @@
              return
            END IF
 
-           if(MODELNAME /= 'RAPR')then
+           if(MODELNAME /= 'RAPR' .AND. MODELNAME /= 'GFS' .AND. MODELNAME /= 'FV3R')then
              if (sfcwind < spval) then
                DELWIND   = WIND - SFCWIND
                ZSFC      = FIS(I,J)*GI

@@ -92,7 +92,7 @@
        </param>
 
        <param>
-       <shortname>CLWMR_ON_ISOBARIC_SFC</shortname>
+       <shortname>CLMR_ON_ISOBARIC_SFC</shortname>
        <pname>CLWMR</pname>
        <level>200. 500. 700. 1000. 2000. 3000. 5000. 7000. 10000. 12500. 15000. 17500. 20000. 22500. 25000. 27500. 30000. 32500. 35000. 37500. 40000. 42500. 45000. 
 47500. 50000. 52500. 55000. 57500. 60000. 62500. 65000. 67500. 70000. 72500. 75000. 77500. 80000. 82500. 85000. 87500. 90000. 92500. 95000. 97500. 100000.</level>
@@ -247,15 +247,42 @@
        </param>
 
        <param>
+       <shortname>ACM_ACPCP_ON_SURFACE</shortname>
+       <pname>ACPCP</pname>
+       <scale>-4.0</scale>
+       </param>
+
+       <param>
        <shortname>ACM_NCPCP_ON_SURFACE</shortname>
        <pname>NCPCP</pname>
        <scale>-4.0</scale>
        </param>
 
        <param>
-       <shortname>INST_PRATE_ON_SURFACE</shortname>
+       <shortname>CACM_APCP_ON_SURFACE</shortname>
+       <scale>-4.0</scale>
+       </param>
+
+       <param>
+       <shortname>CACM_ACPCP_ON_SURFACE</shortname>
+       <scale>-4.0</scale>
+       </param>
+
+       <param>
+       <shortname>CACM_NCPCP_ON_SURFACE</shortname>
+       <scale>-4.0</scale>
+       </param>
+
+       <param>
+       <shortname>AVE_PRATE_ON_SURFACE</shortname>
        <pname>PRATE</pname>
-       <scale>6.0</scale>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>AVE_CPRAT_ON_SURFACE</shortname>
+       <pname>CPRAT</pname>
+       <scale>4.0</scale>
        </param>
 
        <param>
@@ -429,6 +456,12 @@
        </param>
 
        <param>
+       <shortname>POT_ON_TROPOPAUSE</shortname>
+       <pname>POT</pname>
+       <scale>5.0</scale>
+       </param>
+
+       <param>
        <shortname>UGRD_ON_TROPOPAUSE</shortname>
        <pname>UGRD</pname>
        <scale>4.0</scale>
@@ -503,18 +536,42 @@
        </param>
 
        <param>
-       <shortname>MAX_PRATE_ON_SURFACE</shortname>
-       <pname>PRATE</pname>
-       <scale>6.0</scale>
-       </param>
-
-       <param>
        <shortname>MAX_WIND_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
        <pname>WIND</pname>
        <scale>-4.0</scale>
        </param>
 
+       <param>
+       <shortname>GUST_ON_SURFACE</shortname>
+       <pname>GUST</pname>
+       <scale>3.0</scale>
+       </param>
 
+       <param>
+       <shortname>MAX_MAXUVV_ON_ISOBARIC_SFC_100-1000hpa</shortname>
+       <pname>MAXUVV</pname>
+       <scale>-4.0</scale>
+       </param>
+
+       <param>
+       <shortname>MAX_MAXDVV_ON_ISOBARIC_SFC_100-1000hpa</shortname>
+       <pname>MAXDVV</pname>
+       <scale>-4.0</scale>
+       </param>
+
+       <param>
+       <shortname>GSD_MAX_UPHL_ON_SPEC_HGT_LVL_ABOVE_GRND_0-3km</shortname>
+       <pname>MXUPHL</pname>
+       <table_info>NCEP</table_info>
+       <scale>-3.0</scale>
+       </param>
+   
+       <param>
+       <shortname>MAX_UPHL_ON_SPEC_HGT_LVL_ABOVE_GRND_2-5km</shortname>
+       <pname>MXUPHL</pname>
+       <table_info>NCEP</table_info>
+       <scale>-3.0</scale>
+       </param>
 
     </paramset>
 

@@ -23,10 +23,13 @@
 !> 2013-10-03 | J Wang                    |Add option for po to be pascal, and add gocart_on,d3d_on and popascal to namelist
 !> 2020-03-25 | J Meng                    | Remove grib1
 !> 2021-06-20 | W Meng                    | Remove reading grib1 and gfsio lib
+!> 2021-07-07 | J MENG                    |2D DECOMPOSITION
 !> 2021-10-22 | KaYee Wong                | Created formal fortran namelist for itag
 !> 2021-11-03 | Tracy Hertneky            | Removed SIGIO option
 !> 2022-01-14 | W Meng                    | Remove interfaces INITPOST_GS_NEMS, INITPOST_NEMS_MPIIO, INITPOST_NMM and INITPOST_GFS_NETCDF
 !> 2022-03-15 | W Meng                    | Unify FV3 based interfaces
+!> 2022-09-22 | L Zhang                   | Add option of nasa_on to process ufs-aerosols
+!> 2022-11-08 | K Wang                    | Replace aqfamaq_on with aqf_on
 !>
 !> @author Mike Bladwin NSSL/SPC @date 2002-06-18
       PROGRAM WRFPOST
@@ -109,11 +112,12 @@
               mpi_comm_inter, filename, ioform, grib, idat, filenameflux, filenamed3d, gdsdegr,      &
               spldef, modelname, ihrst, lsmdef,vtimeunits, tprec, pthresh, datahandle, im, jm, lm,   &
               lp1, lm1, im_jm, isf_surface_physics, nsoil, spl, lsmp1, global, imp_physics,          &
+              ista, iend, ista_m, iend_m, ista_2l, iend_2u,                                          &
               jsta, jend, jsta_m, jend_m, jsta_2l, jend_2u, novegtype, icount_calmict, npset, datapd,&
               lsm, fld_info, etafld2_tim, eta2p_tim, mdl2sigma_tim, cldrad_tim, miscln_tim,          &
-              mdl2agl_tim, mdl2std_tim, mdl2thandpv_tim, calrad_wcloud_tim,                          &
+              mdl2agl_tim, mdl2std_tim, mdl2thandpv_tim, calrad_wcloud_tim,nasa_on,                  &
               fixed_tim, time_output, imin, surfce2_tim, komax, ivegsrc, d3d_on, gocart_on,rdaod,    &
-              readxml_tim, spval, fullmodelname, submodelname, hyb_sigp, filenameflat, aqfcmaq_on
+              readxml_tim, spval, fullmodelname, submodelname, hyb_sigp, filenameflat, aqf_on,numx
       use grib2_module,   only: gribit2,num_pset,nrecout,first_grbtbl,grib_info_finalize
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
       implicit none
@@ -138,8 +142,8 @@
 !
       integer      :: kpo,kth,kpv
       real,dimension(komax) :: po,th,pv
-      namelist/nampgb/kpo,po,kth,th,kpv,pv,fileNameAER,d3d_on,gocart_on,popascal &
-                     ,hyb_sigp,rdaod,aqfcmaq_on,vtimeunits
+      namelist/nampgb/kpo,po,kth,th,kpv,pv,fileNameAER,d3d_on,gocart_on,nasa_on,popascal &
+                     ,hyb_sigp,rdaod,aqf_on,vtimeunits,numx
       integer      :: itag_ierr
       namelist/model_inputs/fileName,IOFORM,grib,DateStr,MODELNAME,SUBMODELNAME &
                      ,fileNameFlux,fileNameFlat
@@ -186,6 +190,7 @@
 !KaYee: Read itag in Fortran Namelist format
 !Set default 
        SUBMODELNAME='NONE'
+       numx=1
 !open namelist
        open(5,file='itag')
        read(5,nml=model_inputs,iostat=itag_ierr,err=888)
@@ -194,6 +199,7 @@
        print*,'Incorrect namelist variable(s) found in the itag file,stopping!'
        stop
        endif
+       
        if (me==0) print*,'fileName= ',fileName
          if (me==0) print*,'IOFORM= ',IOFORM
          !if (me==0) print*,'OUTFORM= ',grib
@@ -201,6 +207,7 @@
          if (me==0) print*,'DateStr= ',DateStr
          if (me==0) print*,'MODELNAME= ',MODELNAME
          if (me==0) print*,'SUBMODELNAME= ',SUBMODELNAME
+          if (me==0) print*,'numx= ',numx
 !       if(MODELNAME == 'NMM')then
 !        read(5,1114) VTIMEUNITS
 ! 1114   format(a4)
@@ -254,7 +261,8 @@
         hyb_sigp    = .true.
         d3d_on      = .false.
         gocart_on   = .false.
-        aqfcmaq_on  = .false.
+        nasa_on     = .false.
+        aqf_on      = .false.
         popascal    = .false.
         fileNameAER = ''
         rdaod       = .false.
@@ -265,11 +273,48 @@
         fileNameFlat='postxconfig-NT.txt'
         read(5,nampgb,iostat=iret,end=119)
  119    continue
+       if (me==0) print*,'in itag, mod(num_procs,numx)=', mod(num_procs,numx)
+       if(mod(num_procs,numx)/=0) then
+         if (me==0) then
+           print*,'total proces, num_procs=', num_procs 
+           print*,'number of subdomain in x direction, numx=', numx 
+           print*,'remainder of num_procs/numx = ', mod(num_procs,numx)
+           print*,'Warning!!! the remainder of num_procs/numx is not 0, reset numx=1 &
+     &             in this run or you adjust numx in the itag file to restart'
+         endif
+!        stop 9999
+         numx=1
+         if(me == 0) print*,'Warning!!!  Reset numx as 1, numx=',numx
+       endif
+       if(numx>num_procs/2) then
+         if (me==0) then
+           print*,'total proces, num_procs=', num_procs
+           print*,'number of subdomain in x direction, numx=', numx
+           print*,'Warning!!! numx cannot exceed num_procs/2, reset numx=1 in this run'
+           print*,'or you adjust numx in the itag file to restart'
+         endif
+         numx=1
+         if(me == 0) print*,'Warning!!!  Reset numx as 1, numx=',numx
+       endif     
         if(me == 0) then
           print*,'komax,iret for nampgb= ',komax,iret 
-          print*,'komax,kpo,kth,th,kpv,pv,fileNameAER,popascal= ',komax,kpo        &
-     &           ,kth,th(1:kth),kpv,pv(1:kpv),trim(fileNameAER),popascal
+          print*,'komax,kpo,kth,th,kpv,pv,fileNameAER,nasa_on,popascal= ',komax,kpo        &
+     &           ,kth,th(1:kth),kpv,pv(1:kpv),trim(fileNameAER),nasa_on,popascal
+          print*,'NUM_PROCS=',NUM_PROCS
+          print*,'numx= ',numx
         endif
+
+        IF(TRIM(IOFORM) /= 'netcdfpara' .AND. TRIM(IOFORM) /= 'netcdf' ) THEN
+          numx=1
+          if(me == 0) print*,'2D decomposition only supports netcdfpara IO.'
+          if(me == 0) print*,'Reset numx= ',numx
+        ENDIF
+
+        IF(MODELNAME /= 'FV3R' .AND. MODELNAME /= 'GFS') THEN
+          numx=1
+          if(me == 0) print*,'2D decomposition only supports GFS and FV3R.'
+          if(me == 0) print*,'Reset numx= ',numx
+        ENDIF
 
 ! set up pressure level from POSTGPVARS or DEFAULT
         if(kpo == 0) then
@@ -652,11 +697,15 @@
             CALL SET_OUTFLDS(kth,th,kpv,pv)
             if (me==0) write(0,*)' in WRFPOST size datapd',size(datapd) 
             if(allocated(datapd)) deallocate(datapd)
-            allocate(datapd(im,1:jend-jsta+1,nrecout+100))
+!Jesse x-decomposition
+!           allocate(datapd(im,1:jend-jsta+1,nrecout+100))
+            allocate(datapd(1:iend-ista+1,1:jend-jsta+1,nrecout+100))
 !$omp parallel do private(i,j,k)
             do k=1,nrecout+100
               do j=1,jend+1-jsta
-                do i=1,im
+!Jesse x-decomposition
+!               do i=1,im
+                do i =1,iend+1-ista
                   datapd(i,j,k) = 0.
                 enddo
               enddo
