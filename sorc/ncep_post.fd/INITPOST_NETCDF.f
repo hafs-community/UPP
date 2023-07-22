@@ -27,13 +27,20 @@
 !> 2022-11-16 | Eric James    | Read smoke, dust, biomass burning, and hourly wildfire potential from RRFS
 !> 2022-12-07 | Wen Meng      | Read AOD from AQM model
 !> 2022-12-23 | Eric Aligo    | Read six winter weather diagnostics from model
+!> 2023-01-30 | Sam Trahan    | Read cldfra or cldfra_bl, whichever is available
+!> 2023-02-23 | Eric James    | Read coarse PM and aodtot from RRFS
+!> 2023-03-02 | Sam Trahan    | Read lightning threat index fields
+!> 2023-03-22 | WM Lewis      | Read RRFS effective radii (EFFRL, EFFRI, EFFRS)
+!> !> 2023-04-04 |Li(Kate Zhang)  |Add namelist optoin for CCPP-Chem(UFS-Chem) 
+!         and 2D diag. output (d2d_chem) for GEFS-Aerosols and CCPP-Chem model.
 !>
 !> @author Hui-Ya Chuang @date 2016-03-04
       SUBROUTINE INITPOST_NETCDF(ncid2d,ncid3d)
 
 
       use netcdf
-      use vrbls4d, only: dust, SALT, SUSO, SOOT, WASO, smoke, fv3dust, no3,nh4, PP25, PP10 
+      use vrbls4d, only: dust, SALT, SUSO, SOOT, WASO, smoke, fv3dust, coarsepm,                &
+              no3,nh4, PP25, PP10 
       use vrbls3d, only: t, q, uh, vh, pmid, pint, alpint, dpres, zint, zmid, o3,               &
               qqr, qqs, cwm, qqi, qqw, omga, rhomid, q2, cfr, rlwtt, rswtt, tcucn,              &
               tcucns, train, el_pbl, exch_h, vdifftt, vdiffmois, dconvmois, nradtt,             &
@@ -41,7 +48,8 @@
               vdiffmacce, mgdrag, cnvctvmmixing, ncnvctcfrac, cnvctumflx, cnvctdmflx,           &
               cnvctzgdrag, sconvmois, cnvctmgdrag, cnvctdetmflx, duwt, duem, dusd, dudp,        &
               dusv,ssem,sssd,ssdp,sswt,sssv,bcem,bcsd,bcdp,bcwt,bcsv,ocem,ocsd,ocdp,ocwt,ocsv, &
-              wh, qqg, ref_10cm, qqnifa, qqnwfa, avgpmtf, avgozcon, aextc55, taod5503d
+              wh, qqg, ref_10cm, qqnifa, qqnwfa, avgpmtf, avgozcon, aextc55, taod5503d,         &
+              effri, effrl, effrs
 
       use vrbls2d, only: f, pd, fis, pblh, ustar, z0, ths, qs, twbs, qwbs, avgcprate,           &
               cprate, avgprec, prec, lspa, sno, sndepac, si, cldefi, th10, q10, tshltr, pshltr, &
@@ -65,7 +73,7 @@
               alwoutc,alwtoac,aswoutc,aswtoac,alwinc,aswinc,avgpotevp,snoavg, &
               ti,aod550,du_aod550,ss_aod550,su_aod550,oc_aod550,bc_aod550,prate_max,maod,dustpm10, &
               dustcb,bccb,occb,sulfcb,sscb,dustallcb,ssallcb,dustpm,sspm,pp25cb,pp10cb,no3cb,nh4cb,&
-              pwat, ebb, hwp, aqm_aod550
+              pwat, ebb, hwp, aodtot, aqm_aod550, ltg1_max,ltg2_max,ltg3_max
       use soil,  only: sldpth, sllevel, sh2o, smc, stc
       use masks, only: lmv, lmh, htm, vtm, gdlat, gdlon, dx, dy, hbm2, sm, sice
       use physcons_post, only: grav => con_g, fv => con_fvirt, rgas => con_rd,                     &
@@ -78,9 +86,9 @@
               jend_m, imin, imp_physics, dt, spval, pdtop, pt, qmin, nbin_du, nphs, dtq2, ardlw,&
               ardsw, asrfc, avrain, avcnvc, theat, gdsdegr, spl, lsm, alsl, im, jm, im_jm, lm,  &
               jsta_2l, jend_2u, nsoil, lp1, icu_physics, ivegsrc, novegtype, nbin_ss, nbin_bc,  &
-              nbin_oc, nbin_su, nbin_no3, nbin_nh4, gocart_on, nasa_on, pt_tbl, hyb_sigp,       &
-              filenameFlux, fileNameAER,                                                        &
-              iSF_SURFACE_PHYSICS,rdaod, modelname, aqf_on,                         &
+              nbin_oc, nbin_su, nbin_no3, nbin_nh4, gocart_on,gccpp_on, nasa_on,pt_tbl,hyb_sigp,&
+              filenameFlux, fileNameAER,                                               &
+              iSF_SURFACE_PHYSICS,rdaod, d2d_chem, modelname, aqf_on,                         &
               ista, iend, ista_2l, iend_2u,iend_m
       use gridspec_mod, only: maptype, gridtype, latstart, latlast, lonstart, lonlast, cenlon,  &
               dxval, dyval, truelat2, truelat1, psmapf, cenlat,lonstartv, lonlastv, cenlonv,    &
@@ -153,7 +161,7 @@
       integer ii,jj,js,je,iyear,imn,iday,itmp,ioutcount,istatus,       &
               I,J,L,ll,k,kf,irtn,igdout,n,Index,nframe,                &
               nframed2,iunitd3d,ierr,idum,iret,nrec,idrt
-      integer ncid3d,ncid2d,varid,nhcas
+      integer ncid3d,ncid2d,varid,nhcas,varid_bl,iret_bl
       real    TSTART,TLMH,TSPH,ES,FACT,soilayert,soilayerb,zhour,dum,  &
               tvll,pmll,tv, tx1, tx2
 
@@ -498,13 +506,13 @@
       end if
       if(me==0)print*,'nhcas= ',nhcas
       if (nhcas == 0 ) then  !non-hydrostatic case
-       nrec=18
+       nrec=19
        allocate (recname(nrec))
        recname=[character(len=20) :: 'ugrd','vgrd','spfh','tmp','o3mr', &
                                      'presnh','dzdt', 'clwmr','dpres',  &
                                      'delz','icmr','rwmr',              &
                                      'snmr','grle','smoke','dust',      &
-                                     'smoke_ext','dust_ext']
+                                     'coarsepm','smoke_ext','dust_ext']
       else
        nrec=8
        allocate (recname(nrec))
@@ -512,7 +520,7 @@
                                      'hypres', 'clwmr','dpres']
       endif
 
-!     write(0,*)'nrec=',nrec
+!     write(*,*)'nrec=',nrec
       !allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
       allocate(glat1d(jm),glon1d(im))
 
@@ -863,10 +871,12 @@
        spval,recname(15),smoke(ista_2l,jsta_2l,1,1),lm)
        call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
        spval,recname(16),fv3dust(ista_2l,jsta_2l,1,1),lm)
+       call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+       spval,recname(17),coarsepm(ista_2l,jsta_2l,1,1),lm)
        call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-       spval,recname(17),extsmoke(ista_2l,jsta_2l,1),lm)
+       spval,recname(18),extsmoke(ista_2l,jsta_2l,1),lm)
        call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-       spval,recname(18),extdust(ista_2l,jsta_2l,1),lm)
+       spval,recname(19),extdust(ista_2l,jsta_2l,1),lm)
        endif
 
 ! calculate CWM from FV3 output
@@ -889,14 +899,45 @@
         call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
         spval,VarName,cfr(ista_2l,jsta_2l,1),lm)
       else
-        VarName='cldfra'
-        call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-        spval,VarName,cfr(ista_2l,jsta_2l,1),lm)
+
+        iret_bl = nf90_inq_varid(ncid2d,'cldfra_bl',varid_bl)
+        iret = nf90_inq_varid(ncid2d,'cldfra',varid)
+
+        if(iret_bl==NF90_NOERR .and. iret==NF90_NOERR) then
+          write(*,*) 'WARNING: BOTH cldfra_bl AND cldfra ARE AVAILABLE. USING cldfra.'
+          VarName='cldfra'
+        else if(iret_bl==NF90_NOERR) then
+          VarName='cldfra_bl'
+        else if(iret==NF90_NOERR) then
+          VarName='cldfra'
+        else
+          VarName='nope'
+        endif
+          
+        if(VarName /= 'nope') then
+          call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+               spval,VarName,cfr(ista_2l,jsta_2l,1),lm)
+        endif
       endif
 !      do l=1,lm
 !       if(debugprint)print*,'sample ',VarName,'isa,jsa,l =' &
 !          ,cfr(isa,jsa,l),isa,jsa,l
 !      enddo
+
+!     WL add cieffr for Thompson scheme cloud ice effective radius
+      VarName='cieffr'
+      call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,effri(ista_2l,jsta_2l,1),lm)
+
+!     WL add cleffr for Thompson scheme cloud water effective radius
+      VarName='cleffr'
+      call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,effrl(ista_2l,jsta_2l,1),lm)
+
+!     WL add cseffr for Thompson scheme snow effective radius
+      VarName='cseffr'
+      call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,effrs(ista_2l,jsta_2l,1),lm)
 
 !=====================================
 ! For AQF Hourly average field PM2.5
@@ -983,7 +1024,30 @@
       call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
       spval,VarName,hwp(ista_2l,jsta_2l))
      if(debugprint)print*,'sample ',VarName,' =',hwp(isa,jsa)
+! total aod
+      VarName='aodtot'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,aodtot(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',aodtot(isa,jsa)
       endif
+
+! lightning threat index 1
+      VarName='ltg1_max'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ltg1_max(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',ltg1_max(isa,jsa)
+
+! lightning threat index 2
+      VarName='ltg2_max'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ltg2_max(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',ltg2_max(isa,jsa)
+
+! lightning threat index 3
+      VarName='ltg3_max'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ltg3_max(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',ltg3_max(isa,jsa)
 
 ! surface pressure
       VarName='pressfc'
@@ -1090,8 +1154,9 @@
 
       
       print *, 'gocart_on=',gocart_on
+      print *, 'gccpp_on=',gccpp_on
       print *, 'nasa_on=',nasa_on
-      if (gocart_on .or. nasa_on) then
+      if (gocart_on .or.gccpp_on .or. nasa_on) then
 
 ! GFS output dust in nemsio (GOCART)
         dustcb=0.0
@@ -1243,7 +1308,7 @@
         sulfcb=0.0
 
 !       SUSO = SPVAL
-        if (gocart_on) then
+        if (gocart_on .or. gccpp_on) then
         VarName='sulf'
         endif
 
@@ -1321,7 +1386,7 @@
 ! GFS output pp25 in nemsio (GOCART)
         pp25cb=0.0
 
-        if (gocart_on) then
+        if (gocart_on .or. gccpp_on) then
         VarName='pp25'
         endif
 
@@ -1334,7 +1399,7 @@
 
 ! GFS output pp10 in nemsio (GOCART)
         pp10cb=0.0
-        if (gocart_on) then
+        if (gocart_on .or. gccpp_on) then
         VarName='pp10'
         endif
 
@@ -1434,7 +1499,7 @@
        sspm(i,j)=(salt(i,j,l,1)+salt(i,j,l,2)+ &
        0.83*salt(i,j,l,3))*RHOMID(i,j,l)  !ug/m3 
 
-       if (gocart_on) then
+       if (gocart_on .or. gccpp_on) then
 !      PM10 concentration
        dusmass(i,j)=(dust(i,j,l,1)+dust(i,j,l,2)+dust(i,j,l,3)+ &
        0.74*dust(i,j,l,4)+salt(i,j,l,1)+salt(i,j,l,2)+salt(i,j,l,3)+ &
@@ -1679,7 +1744,7 @@
       do j=jsta,jend
         do i=ista,iend
           if (ths(i,j) /= spval) then
-!    write(0,*)' i=',i,' j=',j,' ths=',ths(i,j),' pint=',pint(i,j,lp1)
+!    write(*,*)' i=',i,' j=',j,' ths=',ths(i,j),' pint=',pint(i,j,lp1)
             ths(i,j) = ths(i,j) * (p1000/pint(i,j,lp1))**capa
           endif
           QS(i,j)    = SPVAL ! GFS does not have surface specific humidity
@@ -2824,7 +2889,11 @@
 !$omp parallel do private(i,j)
       do j = jsta_2l, jend_2u
         do i=ista,iend
-          acsnow(i,j) = buf(i,j) + buf2(i,j)
+          if(buf(i,j)<spval .and. buf2(i,j)<spval) then
+            acsnow(i,j) = buf(i,j) + buf2(i,j)
+          else
+            acsnow(i,j) = spval
+          endif
         enddo
       enddo
       VarName='snacc_land'
@@ -2836,7 +2905,11 @@
 !$omp parallel do private(i,j)
       do j = jsta_2l, jend_2u
         do i=ista,iend
-          sndepac(i,j) = buf(i,j) + buf2(i,j)
+          if(buf(i,j)<spval .and. buf2(i,j)<spval) then
+            sndepac(i,j) = buf(i,j) + buf2(i,j)
+          else
+            sndepac(i,j) = spval
+          endif
         enddo
       enddo
 !$omp parallel do private(i,j)
@@ -3316,8 +3389,9 @@
 
 
       print *, 'gocart_on=',gocart_on
+      print *, 'gccpp_on=',gccpp_on
       print *, 'nasa_on=',nasa_on
-      if (gocart_on) then
+      if ((gocart_on .or. gccpp_on) .and. d2d_chem) then
 
 
 ! retrieve dust emission fluxes

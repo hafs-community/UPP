@@ -44,6 +44,10 @@
 !!                        that cause issues with newer wgrib2 builds in RRFS system.
 !! -  22-11-16  E JAMES - Adding dust from RRFS
 !! -  22-12-23  E Aligo - Read six winter weather diagnostics from model.
+!! -  23-01-24  Sam Trahan - store hourly accumulated precip for IFI and bucket time
+!! -  23-02-11  W Meng  - Add fix of time accumulation in bucket graupel for FV3 based models
+!! -  23-02-23  E James - Adding coarse PM from RRFS
+!! -  23-03-22  S Trahan - Fixed out-of-bounds access calling BOUND with wrong array dimensions
 !!     
 !! USAGE:    CALL SURFCE
 !!   INPUT ARGUMENT LIST:
@@ -70,7 +74,7 @@
 !     
 !     INCLUDE GRID DIMENSIONS.  SET/DERIVE OTHER PARAMETERS.
 !
-      use vrbls4d, only: smoke, fv3dust
+      use vrbls4d, only: smoke, fv3dust, coarsepm
       use vrbls3d, only: zint, pint, t, pmid, q, f_rimef
       use vrbls2d, only: ths, qs, qvg, qv2m, tsnow, tg, smstav, smstot,       &
                          cmc, sno, snoavg, psfcavg, t10avg, snonc, ivgtyp,    &
@@ -96,7 +100,7 @@
                          snow_bucket1, rainc_bucket1, graup_bucket1,          &
                          frzrn_bucket, snow_acm, snow_bkt,                    &
                          shdmin, shdmax, lai, ch10,cd10,landfrac,paha,pahi,   &
-                         tecan,tetran,tedir,twa
+                         tecan,tetran,tedir,twa,IFI_APCP
       use soil,    only: stc, sllevel, sldpth, smc, sh2o
       use masks,   only: lmh, sm, sice, htm, gdlat, gdlon
       use physcons_post,only: CON_EPS, CON_EPSM1
@@ -165,7 +169,7 @@
       character(len=256) :: ffgfile
       character(len=256) :: arifile
 
-      logical file_exists
+      logical file_exists, need_ifi
 
       logical, parameter :: debugprint = .false.
 
@@ -359,7 +363,6 @@
 !     
 !        SURFACE RELATIVE HUMIDITY.
          IF (IGET(076)>0) THEN
-            CALL BOUND(RHSFC,H1,H100)
             if(grib=='grib2') then
              cfld=cfld+1
              fld_info(cfld)%ifld=IAVBLFLD(IGET(076))
@@ -368,7 +371,11 @@
                jj = jsta+j-1
                do i=1,iend-ista+1
                ii = ista+i-1
-                 datapd(i,j,cfld) = RHSFC(ii,jj)
+               if(RHSFC(ii,jj) /= spval) then
+                 datapd(i,j,cfld) = max(H1,min(H100,RHSFC(ii,jj)))
+               else
+                 datapd(i,j,cfld) = spval
+               endif
                enddo
              enddo
             endif
@@ -1015,7 +1022,7 @@
 ! ONLY OUTPUT NEW LSM FIELDS FOR NMM AND ARW BECAUSE RSM USES OLD SOIL TYPES
       IF (MODELNAME == 'NCAR'.OR. MODELNAME == 'NMM'                  &
         .OR. MODELNAME == 'FV3R' .OR. MODELNAME == 'RAPR') THEN
-!       write(0,*)'in surf,isltyp=',maxval(isltyp(1:im,jsta:jend)),   &
+!       write(*,*)'in surf,isltyp=',maxval(isltyp(1:im,jsta:jend)),   &
 !         minval(isltyp(1:im,jsta:jend)),'qwbs=',maxval(qwbs(1:im,jsta:jend)), &
 !         minval(qwbs(1:im,jsta:jend)),'potsvp=',maxval(potevp(1:im,jsta:jend)), &
 !         minval(potevp(1:im,jsta:jend)),'sno=',maxval(sno(1:im,jsta:jend)), &
@@ -2170,6 +2177,23 @@
            if(grib=='grib2') then
              cfld=cfld+1
              fld_info(cfld)%ifld=IAVBLFLD(IGET(744))
+             datapd(1:iend-ista+1,1:jend-jsta+1,cfld) = GRID1(ista:iend,jsta:jend)
+           endif
+         ENDIF
+!
+! E. James - 23 Feb 2023: COARSEPM from RRFS on lowest model level
+!
+         IF (IGET(1014)>0) THEN
+           GRID1=SPVAL
+           DO J=JSTA,JEND
+             DO I=ISTA,IEND
+             if(T(I,J,LM)/=spval.and.PMID(I,J,LM)/=spval.and.COARSEPM(I,J,LM,1)/=spval)&
+               GRID1(I,J) = (1./RD)*(PMID(I,J,LM)/T(I,J,LM))*COARSEPM(I,J,LM,1)/(1E9)
+             ENDDO
+           ENDDO
+           if(grib=='grib2') then
+             cfld=cfld+1
+             fld_info(cfld)%ifld=IAVBLFLD(IGET(1014))
              datapd(1:iend-ista+1,1:jend-jsta+1,cfld) = GRID1(ista:iend,jsta:jend)
            endif
          ENDIF
@@ -3771,17 +3795,22 @@
 
 !     PRECIPITATION BUCKETS - accumulated between output times
 !     'BUCKET TOTAL PRECIP '
-         IF (IGET(434)>0.) THEN
+         NEED_IFI = IGET(1007)>0 .or. IGET(1008)>0 .or. IGET(1009)>0 .or. IGET(1010)>0
+         IF (IGET(434)>0. .or. NEED_IFI) THEN
 !$omp parallel do private(i,j)
            DO J=JSTA,JEND
              DO I=ISTA,IEND
                IF (IFHR == 0) THEN
-                 GRID1(I,J) = 0.0
+                 IFI_APCP(I,J) = 0.0
                ELSE
-                 GRID1(I,J) = PCP_BUCKET(I,J)
+                 IFI_APCP(I,J) = PCP_BUCKET(I,J)
                ENDIF 
              ENDDO
            ENDDO
+           ! Note: IFI.F may replace IFI_APCP with other values where it is spval or 0
+         ENDIF
+
+         IF (IGET(434)>0.) THEN
            ID(1:25) = 0
            ITPREC     = NINT(TPREC)
 !mp
@@ -3804,7 +3833,7 @@
              IF(IFMIN >= 1)ID(18)=IFHR*60+IFMIN-IFINCR
            ENDIF
            IF (ID(18)<0) ID(18) = 0
-           if(grib=='grib2') then
+           if(grib=='grib2' .and. IGET(434)>0) then
              cfld=cfld+1
              fld_info(cfld)%ifld=IAVBLFLD(IGET(434))
              if(ITPREC>0) then
@@ -3826,7 +3855,7 @@
                jj = jsta+j-1
                do i=1,iend-ista+1
                ii = ista+i-1
-                 datapd(i,j,cfld) = GRID1(ii,jj)
+                 datapd(i,j,cfld) = IFI_APCP(ii,jj)
                enddo
              enddo
            endif
@@ -4071,6 +4100,10 @@
                 endif
                 fld_info(cfld)%ntrange=1
               end if
+              if(MODELNAME == 'GFS' .OR. MODELNAME == 'FV3R') then
+                fld_info(cfld)%ntrange=1
+                fld_info(cfld)%tinvstat=IFHR-ID(18)
+              endif
 !$omp parallel do private(i,j,ii,jj)
               do j=1,jend-jsta+1
                 jj = jsta+j-1
@@ -4504,7 +4537,7 @@
                     freezr(ista:iend,jsta:jend,nalg), snow(ista:iend,jsta:jend,nalg))
            allocate(zwet(ista:iend,jsta:jend))
            CALL CALWXT_POST(T,Q,PMID,PINT,HTM,LMH,PREC,ZINT,IWX1,ZWET)
-!          write(0,*)' after first CALWXT_POST'
+!          write(*,*)' after first CALWXT_POST'
 
 
            IF (IGET(160)>0) THEN 
@@ -4574,12 +4607,12 @@
 ! BOURGOUIN ALGORITHM
              ISEED=44641*(INT(SDAT(1)-1)*24*31+INT(SDAT(2))*24+IHRST)+   &
      &             MOD(IFHR*60+IFMIN,44641)+4357
-!            write(0,*)'in SURFCE,me=',me,'bef 1st CALWXT_BOURG_POST iseed=',iseed
+!            write(*,*)'in SURFCE,me=',me,'bef 1st CALWXT_BOURG_POST iseed=',iseed
              CALL CALWXT_BOURG_POST(IM,ISTA_2L,IEND_2U,ISTA,IEND,JM,JSTA_2L,JEND_2U,JSTA,JEND,LM,LP1,&
      &                              ISEED,G,PTHRESH,                       &
      &                              T,Q,PMID,PINT,LMH,PREC,ZINT,IWX1,me)
-!            write(0,*)'in SURFCE,me=',me,'aft 1st CALWXT_BOURG_POST'
-!            write(0,*)'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA),'PTHRESH=',PTHRESH
+!            write(*,*)'in SURFCE,me=',me,'aft 1st CALWXT_BOURG_POST'
+!            write(*,*)'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA),'PTHRESH=',PTHRESH
 
 !     DECOMPOSE IWX1 ARRAY
 !
@@ -4758,7 +4791,7 @@
              ENDDO
            ENDDO
            if (allocated(zwet)) deallocate(zwet)
-!          write(0,*)' after second CALWXT_POST me=',me
+!          write(*,*)' after second CALWXT_POST me=',me
 !          print *,'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA)
 
 !     DOMINANT PRECIPITATION TYPE
@@ -4786,11 +4819,11 @@
 ! BOURGOUIN ALGORITHM
            ISEED=44641*(INT(SDAT(1)-1)*24*31+INT(SDAT(2))*24+IHRST)+   &
      &           MOD(IFHR*60+IFMIN,44641)+4357
-!          write(0,*)'in SURFCE,me=',me,'bef sec CALWXT_BOURG_POST'
+!          write(*,*)'in SURFCE,me=',me,'bef sec CALWXT_BOURG_POST'
            CALL CALWXT_BOURG_POST(IM,ISTA_2L,IEND_2U,ISTA,IEND,JM,JSTA_2L,JEND_2U,JSTA,JEND,LM,LP1,&
      &                        ISEED,G,PTHRESH,                            &
      &                        T,Q,PMID,PINT,LMH,AVGPREC,ZINT,IWX1,me)
-!          write(0,*)'in SURFCE,me=',me,'aft sec CALWXT_BOURG_POST'
+!          write(*,*)'in SURFCE,me=',me,'aft sec CALWXT_BOURG_POST'
 !          print *,'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA)
 
 !     DECOMPOSE IWX1 ARRAY
@@ -4808,7 +4841,7 @@
 
 ! REVISED NCEP ALGORITHM
            CALL CALWXT_REVISED_POST(T,Q,PMID,PINT,HTM,LMH,AVGPREC,ZINT,IWX1)
-!          write(0,*)'in SURFCE,me=',me,'aft sec CALWXT_REVISED_BOURG_POST'
+!          write(*,*)'in SURFCE,me=',me,'aft sec CALWXT_REVISED_BOURG_POST'
 !          print *,'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA)
 !     DECOMPOSE IWX1 ARRAY
 !
@@ -4825,7 +4858,7 @@
               
 ! EXPLICIT ALGORITHM (UNDER 18 NOT ADMITTED WITHOUT PARENT OR GUARDIAN)
  
-!          write(0,*)'in SURFCE,me=',me,'imp_physics=',imp_physics
+!          write(*,*)'in SURFCE,me=',me,'imp_physics=',imp_physics
            IF(imp_physics == 5)then
              CALL CALWXT_EXPLICIT_POST(LMH,THS,PMID,AVGPREC,SR,F_RimeF,IWX1)
            else
@@ -6676,7 +6709,7 @@
       character(len=256), intent(in) :: compfile
       integer, intent(in) :: igetfld,fcst
       integer :: trange,invstat
-      real, dimension(IM,JM) :: outgrid
+      real, dimension(ista:iend,jsta:jend) :: outgrid
 
       real, allocatable, dimension(:,:) :: mscValue
 
@@ -6688,6 +6721,8 @@
       logical :: file_exists
 
       integer :: i, j, k, ii, jj
+
+      outgrid = 0
 
 !     Read in reference grid.
       INQUIRE(FILE=compfile, EXIST=file_exists)
@@ -6739,13 +6774,9 @@
                   outgrid(I,J) = 1.0
                ELSE IF (fcst .GT. 1 .AND. AVGPREC_CONT(I,J)*FLOAT(IFHR)*3600.*1000./DTQ2 .GT. mscValue(I,J)) THEN
                   outgrid(I,J) = 1.0
-               ELSE
-                  outgrid(I,J) = 0.0
                ENDIF
             ENDDO
          ENDDO
-       ELSE
-         outgrid = 0.0*AVGPREC
        ENDIF
       ENDIF
 !      write(*,*) 'FFG MAX, MIN:', &

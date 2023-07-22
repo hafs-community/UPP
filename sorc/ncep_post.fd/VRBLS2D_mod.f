@@ -29,6 +29,8 @@
       ,CLDEFI(:,:),ALBASE(:,:),SI(:,:),LSPA(:,:)                             &
       ,RSWINC(:,:),VIS(:,:),PD(:,:),MXSNAL(:,:),MIXHT(:,:)                   &
       ,SNONC(:,:),EPSR(:,:),RSWTOA(:,:),TEQL(:,:)                            &
+! Variables saved for input to IFI
+      ,IFI_APCP(:,:),CAPE(:,:),CIN(:,:)                                      &
 ! HWRF additions
       ,MDLTAUX(:,:),MDLTAUY(:,:),CD10(:,:),CH10(:,:)  &
       ,ACSWUPT(:,:),SWDNT(:,:),ACSWDNT(:,:) &
@@ -60,7 +62,7 @@
       ,SWNORMmean(:,:),SNFDEN(:,:),SNDEPAC(:,:),SWDDNI(:,:),SWDDIF(:,:)      &
       ,SWDNBC(:,:),SWDDNIC(:,:),SWDDIFC(:,:), SWUPBC(:,:), SWUPT(:,:)        &
       ,TAOD5502D(:,:),AERASY2D(:,:),AERSSA2D(:,:),MEAN_FRP(:,:),EBB(:,:)     &
-      ,HWP(:,:),LWP(:,:),IWP(:,:)                                            &
+      ,HWP(:,:),AODTOT(:,:),LWP(:,:),IWP(:,:)                                &
 ! add new fields for GFS
       ,SFCUX(:,:),SFCVX(:,:),SFCUXI(:,:), SFCVXI(:,:),AVGALBEDO(:,:),AVGCPRATE(:,:)                   &
       ,AVGPREC(:,:),PTOP(:,:),PBOT(:,:),AVGCFRACH(:,:)                       &

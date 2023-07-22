@@ -21,7 +21,10 @@
 !! -  22-03-22  Wen Meng - Initializing pwat.
 !! -  22-09-22  Li(Kate) Zhang - Initializing NASA GOCART tracers of Nitrate, NH4,and their column burden.
 !! -  22-11-08  Kai Wang - Replace acfcmaq_on with aqf_on
-!!
+!! -  23-01-24  Sam Trahan - CAPE, CIN, and IFI_APCP varibles for input to IFI
+!! -  23-03-22  WM Lewis - Adding effective radius arrays
+!! -2023-04-04  Li(Kate Zhang) Add namelist optoin for CCPP-Chem(UFS-Chem) 
+!         and 2D diag. output (d2d_chem) for GEFS-Aerosols and CCPP-Chem model.
 !!   OUTPUT FILES:
 !!   - STDOUT  - RUN TIME STANDARD OUT.
 !!
@@ -32,6 +35,7 @@
 !!
       SUBROUTINE ALLOCATE_ALL()
 !
+      use upp_ifi_mod, only: set_ifi_dims
       use vrbls4d
       use vrbls3d
       use vrbls2d
@@ -78,6 +82,8 @@
       allocate(tcucn(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
       allocate(EL_PBL(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
 
+      call set_ifi_dims() ! set ifi_nflight and ifi_flight_levels
+      
 !Initialization
 !$omp parallel do private(i,j,l)
       do l=1,lm
@@ -117,7 +123,7 @@
             exch_h(i,j,l)=spval 
             train(i,j,l)=spval 
             tcucn(i,j,l)=spval 
-            EL_PBL(i,j,l)=spval 
+            EL_PBL(i,j,l)=spval
           enddo
         enddo
       enddo
@@ -153,6 +159,9 @@
       allocate(EXTCOF55(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
       allocate(QC_BL(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
       allocate(CFR(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
+      allocate(EFFRI(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
+      allocate(EFFRL(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
+      allocate(EFFRS(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
       allocate(CFR_RAW(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
       allocate(DBZ(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
       allocate(DBZR(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
@@ -185,6 +194,9 @@
             EXTCOF55(i,j,l)=0.
             QC_BL(i,j,l)=spval
             CFR(i,j,l)=spval
+            EFFRI(i,j,l)=spval
+            EFFRL(i,j,l)=spval
+            EFFRS(i,j,l)=spval
             CFR_RAW(i,j,l)=spval
             DBZ(i,j,l)=spval
             DBZR(i,j,l)=spval
@@ -337,6 +349,9 @@
 !
 !     FROM VRBLS2D
 !
+      allocate(CAPE(ista_2l:iend_2u,jsta_2l:jend_2u))
+      allocate(CIN(ista_2l:iend_2u,jsta_2l:jend_2u))
+      allocate(IFI_APCP(ista_2l:iend_2u,jsta_2l:jend_2u))
 ! SRD
       allocate(wspd10max(ista_2l:iend_2u,jsta_2l:jend_2u))
       allocate(w_up_max(ista_2l:iend_2u,jsta_2l:jend_2u))
@@ -357,6 +372,9 @@
 !$omp parallel do private(i,j)
       do j=jsta_2l,jend_2u
         do i=ista_2l,iend_2u
+          CAPE(i,j)=spval
+          CIN(i,j)=spval
+          IFI_APCP(i,j)=spval
           wspd10max(i,j)=spval
           w_up_max(i,j)=spval
           w_dn_max(i,j)=spval
@@ -597,6 +615,7 @@
       allocate(mean_frp(ista_2l:iend_2u,jsta_2l:jend_2u))
       allocate(ebb(ista_2l:iend_2u,jsta_2l:jend_2u))
       allocate(hwp(ista_2l:iend_2u,jsta_2l:jend_2u))
+      allocate(aodtot(ista_2l:iend_2u,jsta_2l:jend_2u))
 !Initialization
 !$omp parallel do private(i,j)
       do j=jsta_2l,jend_2u
@@ -624,10 +643,12 @@
           mean_frp(i,j)=spval
           ebb(i,j)=spval
           hwp(i,j)=spval
+          aodtot(i,j)=spval
         enddo
       enddo
       allocate(smoke(ista_2l:iend_2u,jsta_2l:jend_2u,lm,nbin_sm))
       allocate(fv3dust(ista_2l:iend_2u,jsta_2l:jend_2u,lm,nbin_sm))
+      allocate(coarsepm(ista_2l:iend_2u,jsta_2l:jend_2u,lm,nbin_sm))
 !$omp parallel do private(i,j,l,k)
       do k=1,nbin_sm
         do l=1,lm
@@ -635,6 +656,7 @@
             do i=ista_2l,iend_2u
               smoke(i,j,l,k)=spval
               fv3dust(i,j,l,k)=spval
+              coarsepm(i,j,l,k)=spval
             enddo
           enddo
         enddo
@@ -1061,7 +1083,8 @@
       enddo
 
       if (me == 0) print *,' gocart_on=',gocart_on
-      if (gocart_on .or. nasa_on) then
+      if (me == 0) print *,' gccpp_on=',gccpp_on
+      if (gocart_on .or.gccpp_on .or. nasa_on) then
 !  
 ! Add GOCART fields
 ! vrbls4d
@@ -1170,6 +1193,7 @@
             enddo
           enddo
         enddo
+       if ( d2d_chem ) then
         allocate(duem(ista_2l:iend_2u,jsta_2l:jend_2u,nbin_du))
         allocate(dusd(ista_2l:iend_2u,jsta_2l:jend_2u,nbin_du))
         allocate(dudp(ista_2l:iend_2u,jsta_2l:jend_2u,nbin_du))
@@ -1254,6 +1278,7 @@
             enddo
           enddo
         enddo
+       endif
         allocate(rhomid(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
 !Initialization
 !$omp parallel do private(i,j,l)

@@ -118,14 +118,6 @@
        </param>
 
        <param>
-       <shortname>RIME_ON_HYBRID_LVL</shortname>
-       <pname>RIME</pname>
-       <table_info>NCEP</table_info>
-       <level>1. 2.</level>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
        <shortname>TCOND_ON_HYBRID_LVL</shortname>
        <pname>TCOND</pname>
        <table_info>NCEP</table_info>
@@ -280,12 +272,6 @@
        <pname>MSLET</pname>
        <table_info>NCEP</table_info>
         <scale>6.0</scale>
-       </param>
-
-       <param>
-       <shortname>MAPS_PRMSL_ON_MEAN_SEA_LVL</shortname>
-       <pname>PRMSL</pname>
-       <scale>6.0</scale>
        </param>
 
        <param>
@@ -1636,13 +1622,6 @@
        </param>
 
        <param>
-       <shortname>AVE_LRGHR_ON_ENTIRE_ATMOS</shortname>
-       <pname>LRGHR</pname>
-       <table_info>NCEP</table_info>
-        <scale>5.0</scale>
-       </param>
-
-       <param>
        <shortname>TMP_ON_SIGMA_LVL_HPC</shortname>
        <pname>TMP</pname>
        <scale_fact_fixed_sfc1>4</scale_fact_fixed_sfc1>
@@ -1781,16 +1760,9 @@
        </param>
 
        <param>
-       <shortname>LTNG_ON_SURFACE</shortname>
-       <pname>LTNG</pname>
-       <table_info>NCEP</table_info>
-       <scale>1.0</scale>
-       </param>
-
-       <param>
        <shortname>VIL_ON_ENTIRE_ATMOS</shortname>
        <pname>VIL</pname>
-       <scale>4.0</scale>
+       <scale>7.0</scale>
        </param>
 
        <param>
@@ -1929,6 +1901,16 @@
 
        <param>
            <shortname>DUST_ON_ENTIRE_ATMOS_SINGLE_LYR</shortname>
+           <scale>5.0</scale>
+       </param>
+
+       <param>
+           <shortname>COARSEPM_ON_SPEC_HGT_LVL_ABOVE_GRND_8m</shortname>
+           <scale>6.0</scale>
+       </param>
+
+       <param>
+           <shortname>COARSEPM_ON_ENTIRE_ATMOS_SINGLE_LYR</shortname>
            <scale>5.0</scale>
        </param>
 
@@ -2105,12 +2087,6 @@
        <pname>MSLET</pname>
        <table_info>NCEP</table_info>
         <scale>6.0</scale>
-       </param>
-
-       <param>
-       <shortname>MAPS_PRMSL_ON_MEAN_SEA_LVL</shortname>
-       <pname>PRMSL</pname>
-       <scale>6.0</scale>
        </param>
 
        <param>
@@ -2911,22 +2887,6 @@
        </param>
 
        <param>
-       <shortname>PRES_ON_HYBRID_LVL_1L</shortname>
-       <pname>PRES</pname>
-       <level>1.</level>
-       <level2>21.</level2>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
-       <shortname>PRES_ON_HYBRID_LVL_LLM</shortname>
-       <pname>PRES</pname>
-       <level>1.</level>
-       <level2>61.</level2>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
        <shortname>CNWAT_ON_SURFACE</shortname>
        <pname>CNWAT</pname>
        <table_info>NCEP</table_info>
@@ -3470,42 +3430,8 @@
        </param>
 
        <param>
-       <shortname>TMP_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
-       <pname>TMP</pname>
-       <level>10.</level>
-        <scale>-4.0</scale>
-       </param>
-
-       <param>
        <shortname>AVE_SNOWC_ON_SURFACE</shortname>
        <pname>SNOWC</pname>
-       <table_info>NCEP</table_info>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_PRES_ON_SURFACE</shortname>
-       <pname>PRES</pname>
-        <scale>5.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_TMP_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
-       <pname>TMP</pname>
-       <level>10.</level>
-        <scale>-4.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_AKHS_ON_SURFACE</shortname>
-       <pname>AKHS</pname>
-       <table_info>NCEP</table_info>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_AKMS_ON_SURFACE</shortname>
-       <pname>AKMS</pname>
        <table_info>NCEP</table_info>
        <scale>3.0</scale>
        </param>
@@ -3624,5 +3550,70 @@
        <scale>4.0</scale>
        </param>
 
+       <param>
+       <shortname>GSD_MAX_LTG_THREAT3_ON_ENTIRE_ATMOS</shortname>
+       <pname>LTNG</pname>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>SDEN_ON_SURFACE</shortname>
+       <pname>SDEN</pname>
+       <scale>6.0</scale>
+       </param>
+
+    </paramset>
+
+    <paramset>
+      <datset>IFIFIP</datset>
+      <grid_num>4</grid_num>
+      <sub_center>ncep_emc</sub_center>
+      <version_no>v2003</version_no>
+      <local_table_vers_no>local_tab_yes1</local_table_vers_no>
+      <sigreftime>fcst</sigreftime>
+      <prod_status>oper</prod_status>
+      <data_type>fcst</data_type>
+      <gen_proc_type>fcst</gen_proc_type>
+      <time_range_unit>hour</time_range_unit>
+      <orig_center>nws_ncep</orig_center>
+      <gen_proc>hrrr</gen_proc>
+      <packing_method>complex_packing_spatial_diff</packing_method>
+      <order_of_sptdiff>2nd_ord_sptdiff</order_of_sptdiff>
+      <field_datatype>fltng_pnt</field_datatype>
+      <comprs_type>lossless</comprs_type>
+
+      <!-- New IFI products, only available if libIFI is linked to a post with USE_IFI enabled -->
+
+      <param>
+        <shortname>ICE_PROB_IFI_FLIGHT_LEVEL</shortname>
+        <scale>4.0</scale>
+        <!-- Level units are in 0.1 feet, so final output will be in units of 0.1 meters -->
+        <scale_fact_fixed_sfc1>1</scale_fact_fixed_sfc1>
+        <level>5000. 10000. 15000. 20000. 25000. 30000. 35000. 40000. 45000. 50000. 55000. 60000. 65000. 70000. 75000. 80000. 85000. 90000. 95000. 100000. 105000. 110000. 115000. 120000. 125000. 130000. 135000. 140000. 145000. 150000. 155000. 160000. 165000. 170000. 175000. 180000. 185000. 190000. 195000. 200000. 205000. 210000. 215000. 220000. 225000. 230000. 235000. 240000. 245000. 250000. 255000. 260000. 265000. 270000. 275000. 280000. 285000. 290000. 295000. 300000.</level>
+      </param>
+
+      <param>
+        <shortname>SLD_IFI_FLIGHT_LEVEL</shortname>
+        <scale>4.0</scale>
+        <!-- Level units are in 0.1 feet, so final output will be in units of 0.1 meters -->
+        <scale_fact_fixed_sfc1>1</scale_fact_fixed_sfc1>
+        <level>5000. 10000. 15000. 20000. 25000. 30000. 35000. 40000. 45000. 50000. 55000. 60000. 65000. 70000. 75000. 80000. 85000. 90000. 95000. 100000. 105000. 110000. 115000. 120000. 125000. 130000. 135000. 140000. 145000. 150000. 155000. 160000. 165000. 170000. 175000. 180000. 185000. 190000. 195000. 200000. 205000. 210000. 215000. 220000. 225000. 230000. 235000. 240000. 245000. 250000. 255000. 260000. 265000. 270000. 275000. 280000. 285000. 290000. 295000. 300000.</level>
+      </param>
+
+      <param>
+        <shortname>ICE_SEV_CAT_IFI_FLIGHT_LEVEL</shortname>
+        <scale>4.0</scale>
+        <!-- Level units are in 0.1 feet, so final output will be in units of 0.1 meters -->
+        <scale_fact_fixed_sfc1>1</scale_fact_fixed_sfc1>
+        <level>5000. 10000. 15000. 20000. 25000. 30000. 35000. 40000. 45000. 50000. 55000. 60000. 65000. 70000. 75000. 80000. 85000. 90000. 95000. 100000. 105000. 110000. 115000. 120000. 125000. 130000. 135000. 140000. 145000. 150000. 155000. 160000. 165000. 170000. 175000. 180000. 185000. 190000. 195000. 200000. 205000. 210000. 215000. 220000. 225000. 230000. 235000. 240000. 245000. 250000. 255000. 260000. 265000. 270000. 275000. 280000. 285000. 290000. 295000. 300000.</level>
+      </param>
+
+      <param>
+        <shortname>WMO_ICE_SEV_CAT_IFI_FLIGHT_LEVEL</shortname>
+        <scale>4.0</scale>
+        <!-- Level units are in 0.1 feet, so final output will be in units of 0.1 meters -->
+        <scale_fact_fixed_sfc1>1</scale_fact_fixed_sfc1>
+        <level>5000. 10000. 15000. 20000. 25000. 30000. 35000. 40000. 45000. 50000. 55000. 60000. 65000. 70000. 75000. 80000. 85000. 90000. 95000. 100000. 105000. 110000. 115000. 120000. 125000. 130000. 135000. 140000. 145000. 150000. 155000. 160000. 165000. 170000. 175000. 180000. 185000. 190000. 195000. 200000. 205000. 210000. 215000. 220000. 225000. 230000. 235000. 240000. 245000. 250000. 255000. 260000. 265000. 270000. 275000. 280000. 285000. 290000. 295000. 300000.</level>
+      </param>
     </paramset>
    </postxml>
