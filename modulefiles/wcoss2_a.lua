@@ -66,4 +66,8 @@ setenv("CC","cc")
 setenv("CXX","CC")
 setenv("FC","ftn")
 
+
+prepend_path("MODULEPATH", "/lfs/h1/oar/esrl/noscrub/samuel.trahan/ifi/modulefiles")
+load("ifi/20230511-intel-19.1.3.304")
+
 whatis("Description: post build environment")

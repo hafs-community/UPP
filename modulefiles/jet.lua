@@ -1,11 +1,10 @@
 help([[
-Load environment to build UPP on orion
+Load environment to build UPP on Jet
 ]])
 
+prepend_path("MODULEPATH", "/mnt/lfs4/HFIP/hfv3gfs/role.epic/spack-stack/spack-stack-1.6.0/envs/unified-env-rocky8/install/modulefiles/Core")
 
-prepend_path("MODULEPATH", "/work/noaa/epic/role-epic/spack-stack/orion/spack-stack-1.6.0/envs/unified-env/install/modulefiles/Core")
-
-stack_intel_ver=os.getenv("stack_intel_ver") or "2022.0.2"
+stack_intel_ver=os.getenv("stack_intel_ver") or "2021.5.0"
 load(pathJoin("stack-intel", stack_intel_ver))
 
 stack_impi_ver=os.getenv("stack_impi_ver") or "2021.5.1"
