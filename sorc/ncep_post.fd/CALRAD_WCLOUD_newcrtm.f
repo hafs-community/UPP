@@ -18,12 +18,17 @@
 !> 2021-09-02 | Bo Cui         | Decompose UPP in X direction          
 !> 2022-05-26 | WM Lewis       | added support for GOES-18 ABI IR Channels 7-16
 !> 2022-09-12 | Wen Meng       | Added cloud fraction changes for crtm/2.4.0
+!> 2023-03-22 | WM Lewis       | Added support for using effective radius arrays from RRFS
+!> 2023-10-25 | Eric James     | Bug fix for invalid land category in CRTM
 !>
-!> @author Chuang @date 2007-01-17       
+!> @author Chuang @date 2007-01-17
+!---------------------------------------------------------------------------
+!> @brief CALRAD_WCLOUD Subroutine that computes model derived brightness temperature. 
+!---------------------------------------------------------------------------
       SUBROUTINE CALRAD_WCLOUD
 
   use vrbls3d, only: o3, pint, pmid, t, q, qqw, qqi, qqr, f_rimef, nlice, nrain, qqs, qqg, &
-                     qqnr, qqni, qqnw, cfr
+                     qqnr, qqni, qqnw, cfr, effri, effrl, effrs
   use vrbls2d, only: czen, ivgtyp, sno, pctsno, ths, vegfrc, si, u10h, v10h, u10,&
        v10, smstot, hbot, htop, cnvcfr
   use masks, only: gdlat, gdlon, sm, lmh, sice
@@ -248,8 +253,8 @@
       model_to_crtm=(/PINE_FOREST, BROADLEAF_FOREST, PINE_FOREST,       &
            BROADLEAF_FOREST,BROADLEAF_PINE_FOREST, SCRUB, SCRUB_SOIL, &
            BROADLEAF_BRUSH,BROADLEAF_BRUSH, SCRUB, BROADLEAF_BRUSH,   &
-           TILLED_SOIL, URBAN_CONCRETE,TILLED_SOIL, INVALID_LAND,     &
-           COMPACTED_SOIL, INVALID_LAND, TUNDRA,TUNDRA, TUNDRA/)
+           TILLED_SOIL, URBAN_CONCRETE,TILLED_SOIL, URBAN_CONCRETE,     &
+           COMPACTED_SOIL, BROADLEAF_BRUSH, TUNDRA,TUNDRA, TUNDRA/)
    else if(ivegsrc==0)then ! USGS veg type
       allocate(model_to_crtm(novegtype) )
       model_to_crtm=(/URBAN_CONCRETE,       &
@@ -1359,7 +1364,7 @@
                     geometryinfo(1)%sensor_zenith_angle=sat_zenith
 	            geometryinfo(1)%sensor_scan_angle=sat_zenith
 
-                    if(i==ii .and. j==jj) then
+                    if(i==ii .and. j==jj.and.debugprint) then
                        print *,'zenith info: zenith=',sat_zenith,' scan=',sat_zenith, &
                              ' MAX_SENSOR_SCAN_ANGLE=',MAX_SENSOR_SCAN_ANGLE
                     endif
@@ -1369,7 +1374,7 @@
                          .and. geometryinfo(1)%sensor_zenith_angle >= 0.0_r_kind)THEN
                        geometryinfo(1)%source_zenith_angle = acos(czen(i,j))*rtd ! solar zenith angle
                        geometryinfo(1)%sensor_scan_angle   = 0. ! scan angle, assuming nadir
-                       if(i==ii.and.j==jj)print*,'sample geometry ',                   &
+                       if(i==ii.and.j==jj.and.debugprint)print*,'sample geometry ',                   &
                           geometryinfo(1)%sensor_zenith_angle                          &
                           ,geometryinfo(1)%source_zenith_angle                         &
                           ,czen(i,j)*rtd 
@@ -1536,7 +1541,7 @@
                              print*,'bad snow_depth'
                        end if
        
-                       if(i==ii.and.j==jj)print*,'sample surface in CALRAD=',           &
+                       if(i==ii.and.j==jj.and.debugprint)print*,'sample surface in CALRAD=',           &
                              i,j,surface(1)%wind_speed,surface(1)%water_coverage,       &
                              surface(1)%land_coverage,surface(1)%ice_coverage,          &
                              surface(1)%snow_coverage,surface(1)%land_temperature,      &
@@ -1549,7 +1554,7 @@
 
                        !       Load atmosphere profiles into RTM model layers
                        !       CRTM counts from top down just as post does
-                       if(i==ii.and.j==jj)print*,'TOA= ',atmosphere(1)%level_pressure(0)
+                       if(i==ii.and.j==jj.and.debugprint)print*,'TOA= ',atmosphere(1)%level_pressure(0)
                        do k = 1,lm
                           atmosphere(1)%cloud_fraction(k) = min(max(cfr(i,j,k),0.),1.)
                           atmosphere(1)%level_pressure(k) = pint(i,j,k+1)/r100
@@ -1656,18 +1661,31 @@
                              atmosphere(1)%cloud(3)%water_content(k)=max(0.,qqr(i,j,k)*dpovg)
                              atmosphere(1)%cloud(4)%water_content(k)=max(0.,qqs(i,j,k)*dpovg)
                              atmosphere(1)%cloud(5)%water_content(k)=max(0.,qqg(i,j,k)*dpovg)
-                             atmosphere(1)%cloud(1)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
-                             q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
-                             nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'C')
-                             atmosphere(1)%cloud(2)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
-                             q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
-                             nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'I')
+!                            use the effective radii output directly by the model where possible
+                             if(effrl(i,j,k)/=spval)then
+                              atmosphere(1)%cloud(1)%effective_radius(k)=min(max(effrl(i,j,k),2.5),50.)
+                             else
+                              atmosphere(1)%cloud(1)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
+                              q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
+                              nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'C')
+                             endif
+                             if(effri(i,j,k)/=spval)then
+                              atmosphere(1)%cloud(2)%effective_radius(k)=min(max(effri(i,j,k),2.5),125.)
+                             else
+                              atmosphere(1)%cloud(2)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
+                              q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
+                              nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'I')
+                             endif
+                             if(effrs(i,j,k)/=spval)then
+                              atmosphere(1)%cloud(4)%effective_radius(k)=min(max(effrs(i,j,k),2.5),1000.)
+                             else
+                              atmosphere(1)%cloud(4)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
+                              q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
+                              nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'S')
+                             endif
                              atmosphere(1)%cloud(3)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
                              q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
                              nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'R')
-                             atmosphere(1)%cloud(4)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
-                             q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
-                             nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'S')
                              atmosphere(1)%cloud(5)%effective_radius(k)=effr(pmid(i,j,k),t(i,j,k), &
                              q(i,j,k),qqw(i,j,k),qqi(i,j,k),qqr(i,j,k),f_rimef(i,j,k),nlice(i,j,k), &
                              nrain(i,j,k),qqs(i,j,k),qqg(i,j,k),qqnr(i,j,k),qqni(i,j,k),qqnw(i,j,k),imp_physics,'G')
@@ -1718,10 +1736,10 @@
                           do n=1,channelinfo(sensorindex)%n_channels
                              tb(i,j,n)=rtsolution(n,1)%brightness_temperature
                           end do
-                          if(i==ii.and.j==jj) then
+                          if(i==ii.and.j==jj.and.debugprint) then
                              do n=1,channelinfo(sensorindex)%n_channels
  3303                           format('Sample rtsolution(',I0,',',I0,') in CALRAD = ',F0.3)
-                                print 3303,n,1,rtsolution(n,1)%brightness_temperature
+!                               print 3303,n,1,rtsolution(n,1)%brightness_temperature
                              enddo
                              do n=1,channelinfo(sensorindex)%n_channels
  3304                           format('Sample tb(',I0,',',I0,',',I0,') in CALRAD = ',F0.3)
@@ -2184,6 +2202,28 @@
   endif ifactive ! for all iget logical
   return
 end SUBROUTINE CALRAD_WCLOUD
+
+!-------------------------------------------------------------------------------
+!> @brief EFFR Computes effective particle radii channel selection using LVLS from WRF_CNTRL.PARM. 
+!>
+!> @param pmid real Mid-layer pressure.
+!> @param t real Temperature.
+!> @param q real Specific humidity.
+!> @param qqw real Cloud water mixing ratio.
+!> @param qqi real Ice mixing ratio.
+!> @param qqr real Rain mixing ratio.
+!> @param f_rimef real "Rime Factor", ratio of total ice growth to deposition growth.
+!> @param nlice real Time-averaged number concentration of large ice.
+!> @param nrain real Number concentration of rain drops.
+!> @param qqs real Snow mixing ratio.
+!> @param qqg real Graupel mixing ratio.
+!> @param qqnr real Rain number concentration.
+!> @param qqni real Ice number concentration.
+!> @param qqnw real cloud water number concentration.
+!> @param mp_opt integer Microphysics option.
+!> @param species character Particle type (e.g., cloud, rain, graupel, snow, ice).
+!> @return EFFR Effective particle radii channel selection. 
+!-------------------------------------------------------------------------------
 
 REAL FUNCTION EFFR(pmid,t,q,qqw,qqi,qqr,f_rimef, nlice, nrain, &
                    qqs,qqg,qqnr,qqni,qqnw,mp_opt,species)
@@ -2801,6 +2841,13 @@ REAL FUNCTION EFFR(pmid,t,q,qqw,qqi,qqr,f_rimef, nlice, nrain, &
 
 end function EFFR
 
+!-------------------------------------------------------------------------------
+!> @brief GAMMLN
+!>
+!> @param[in] XX
+!> @return GAMMLN Returns the value of LN(GAMMA(XX)) FOR XX > 0.
+!-------------------------------------------------------------------------------
+
       REAL FUNCTION GAMMLN(XX)
 !     --- RETURNS THE VALUE LN(GAMMA(XX)) FOR XX > 0.
       IMPLICIT NONE
@@ -2824,6 +2871,13 @@ end function EFFR
 11    CONTINUE
       GAMMLN=TMP+LOG(STP*SER/X)
       END FUNCTION GAMMLN
+
+!-------------------------------------------------------------------------------
+!> @brief WGAMMA
+!>
+!> @param[in] y
+!> @return WGAMMA
+!-------------------------------------------------------------------------------
 
       REAL FUNCTION WGAMMA(y)
 

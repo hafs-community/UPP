@@ -1,30 +1,36 @@
 #!/bin/bash
 # Wen Meng 01/2020, Set up for cmake build.
 # Wen Meng 01/2022, Add option for building with gtg code
+# Sam Trahan 01/2023, Add option for building with libIFI
 ############################################################
 
 set -eu
 
 usage() {
   echo
-  echo "Usage: $0 [-p] [-g] [-w] [-v] [-c] -h"
+  echo "Usage: $0 [-p] [-g] [-w] [-v] [-c] [-i] [-d] -h"
   echo
   echo "  -p  installation prefix <prefix>    DEFAULT: ../install"
   echo "  -g  build with GTG(users with gtg repos. access only)     DEFAULT: OFF"
+  echo "  -I  build with libIFI(users with ifi repos. access only)  DEFAULT: OFF"
+  echo "  -i  build with libIFI(users with ifi install access only) DEFAULT: OFF"
   echo "  -w  build without WRF-IO            DEFAULT: ON"
   echo "  -v  build with cmake verbose        DEFAULT: NO"
   echo "  -c  Compiler to use for build       DEFAULT: intel"
+  echo "  -d  Debug mode of CMAKE_BUILD_TYPE  DEFAULT: Release"
   echo "  -h  display this message and quit"
   echo
   exit 1
 }
 
 prefix="../install"
+ifi_opt=" -DBUILD_WITH_IFI=OFF"
 gtg_opt=" -DBUILD_WITH_GTG=OFF"
 wrfio_opt=" -DBUILD_WITH_WRFIO=ON"
 compiler="intel"
 verbose_opt=""
-while getopts ":p:gwc:vh" opt; do
+debug_opt=""
+while getopts ":p:gwc:vhiId" opt; do
   case $opt in
     p)
       prefix=$OPTARG
@@ -35,31 +41,66 @@ while getopts ":p:gwc:vh" opt; do
     w)
       wrfio_opt=" -DBUILD_WITH_WRFIO=OFF"
       ;;
+    I)
+      ifi_opt=" -DINTERNAL_IFI=ON"
+      ;;
+    i)
+      ifi_opt=" -DREQUIRE_IFI=ON"
+      ;;
     c)
       compiler=$OPTARG
       ;;
     v)
       verbose_opt="VERBOSE=1"
       ;;
+    d)
+      debug_opt=" -DCMAKE_BUILD_TYPE=Debug"
+      ;;
     h|\?|:)
       usage
       ;;
   esac
 done
-cmake_opts=" -DCMAKE_INSTALL_PREFIX=$prefix"${wrfio_opt}${gtg_opt}
 
-source ./detect_machine.sh
+if [[ ! -z $debug_opt && $ifi_opt =~ INTERNAL.*=ON ]] ; then
+    echo ENABLING IFI DEBUG
+    # When building debug mode with internal IFI, also enable debugging in IFI.
+    # This includes bounds checking in much of the libIFI C++ library.
+    debug_opt="$debug_opt -DIFI_DEBUG=ON"
+fi
+
+cmake_opts=" -DCMAKE_INSTALL_PREFIX=$prefix"${wrfio_opt}${gtg_opt}${ifi_opt}${debug_opt}
+
 if [[ $(uname -s) == Darwin ]]; then
   readonly MYDIR=$(cd "$(dirname "$(greadlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 else
   readonly MYDIR=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )" && pwd -P)
 fi
 PATHTR=${PATHTR:-$( cd ${MYDIR}/.. && pwd )}
+source ${PATHTR}/tests/detect_machine.sh
 
 #Load required modulefiles
 if [[ $MACHINE_ID != "unknown" ]]; then
    if [ $MACHINE_ID == "wcoss2"  -o $MACHINE_ID == "wcoss2_a" ]; then
       module reset
+   elif [[ "$MACHINE_ID" =~ gaea.* ]] ; then
+      if [[ $( hostname ) =~ gaea5[0-9] ]] ; then
+         module purge
+         # Unset the read-only variables $PELOCAL_PRGENV and $RCLOCAL_PRGENV
+         gdb -ex 'call (int) unbind_variable("PELOCAL_PRGENV")' \
+             -ex 'call (int) unbind_variable("RCLOCAL_PRGENV")' \
+             --pid=$$ --batch
+         # Reload system default modules:
+         set +eu
+         source /etc/bash.bashrc.local
+         source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
+         set -eu
+      else
+         # There is no safe "module purge" on GAEA compute nodes.
+         set +eu
+         source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
+         set -eu
+      fi
    else
       module purge
    fi
@@ -79,11 +120,13 @@ if [[ $MACHINE_ID != "unknown" ]]; then
    module list
 fi
 
-rm -rf build install
-mkdir build && cd build
-cmake $cmake_opts ../..
-make -j6 $verbose_opt 
+set -x
+BUILD_DIR=${BUILD_DIR:-"build"}
+rm -rf ${BUILD_DIR} install
+mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
+cmake $cmake_opts ${PATHTR}
+make -j${BUILD_JOBS:-6} $verbose_opt
 make install
 
-rm -rf $PATHTR/exec && mkdir $PATHTR/exec
-cp $PATHTR/tests/install/bin/upp.x $PATHTR/exec/.
+rm -rf $PATHTR/exec && mkdir -p $PATHTR/exec
+cp $prefix/bin/upp.x $PATHTR/exec/.

@@ -1,76 +1,79 @@
 !> @file
-!
-!> SUBPROGRAM:    SURFCE      POST SURFACE BASED FIELDS
-!!   PRGRMMR: TREADON         ORG: W/NP2      DATE: 92-12-21       
-!!     
-!! ABSTRACT:
-!!     THIS ROUTINE POSTS SURFACE BASED FIELDS.
-!!     
-!! PROGRAM HISTORY LOG:
-!! -  92-12-21  RUSS TREADON
-!! -  94-08-04  MICHAEL BALDWIN - ADDED OUTPUT OF SFC FLUXES OF
-!!                               SENS AND LATENT HEAT AND THETA AT Z0
-!! -  94-11-04  MICHAEL BALDWIN - ADDED INSTANTANEOUS PRECIP TYPE
-!! -  96-03-19  MICHAEL BALDWIN - CHANGE SOIL PARAMETERS
-!! -  96-09-25  MICHAEL BALDWIN - ADDED SNOW RATIO FROM EXPLICIT SCHEME
-!! -  96-10-17  MICHAEL BALDWIN - CHANGED SFCEVP,POTEVP TO ACCUM.  TOOK
-!!                               OUT -PTRACE FOR ACSNOW,SSROFF,BGROFF.
-!! -  97-04-23  MICHAEL BALDWIN - TOOK OUT -PTRACE FOR ALL PRECIP FIELDS
-!! -  98-06-12  T BLACK         - CONVERSION FROM 1-D TO 2-D
-!! -  98-07-17  MIKE BALDWIN - REMOVED LABL84
-!! -  98-08-18  MIKE BALDWIN - COMPUTE RH OVER ICE
-!! -  98-12-22  MIKE BALDWIN - BACK OUT RH OVER ICE
-!! -  00-01-04  JIM TUCCILLO - MPI VERSION
-!! -  01-10-22  H CHUANG - MODIFIED TO PROCESS HYBRID MODEL OUTPUT
-!! -  02-06-11  MIKE BALDWIN - WRF VERSION ASSUMING ALL ACCUM VARS
-!!                            HAVE BUCKETS THAT FILL FROM T=00H ON
-!! -  02-08-28  H CHUANG - COMPUTE FIELDS AT SHELTER LEVELS FOR WRF
-!! -  04-12-09  H CHUANG - ADD ADDITIONAL LSM FIELDS
-!! -  05-07-07  BINBIN ZHOU - ADD RSM MODEL
-!! -  05-08-24  GEOFF MANIKIN - ADDED DOMINANT PRECIP TYPE
-!! -  11-02-06  JUN WANG  - ADDED GRIB2 OPTION
-!! -  13-08-05  S Moorthi - Eliminate unnecessary arrays (reduce memory)
-!!                         and some cosmetic changes
-!! -  14-02-26  S Moorthi - threading datapd assignment
-!! -  14-11-26  S Moorthi - cleanup and some bug fix (may be?)
-!! -  20-03-25  J MENG    - remove grib1
-!! -  20-05-20  J MENG    - CALRH unification with NAM scheme
-!! -  20-11-10  J MENG    - USE UPP_PHYSICS MODULE
-!! -  21-03-11  B Cui - change local arrays to dimension (im,jsta:jend)
-!! -  21-04-01  J MENG    - COMPUTATION ON DEFINED POINTS ONLY
-!! -  21-07-26  W Meng  - Restrict computation from undefined grids
-!! -  21-10-31  J MENG    - 2D DECOMPOSITION
-!! -  22-02-01  E JAMES - Cleaning up GRIB2 encoding for six variables
-!!                        that cause issues with newer wgrib2 builds in RRFS system.
-!! -  22-11-16  E JAMES - Adding dust from RRFS
-!! -  22-12-23  E Aligo - Read six winter weather diagnostics from model.
-!!     
-!! USAGE:    CALL SURFCE
-!!   INPUT ARGUMENT LIST:
-!!
-!!   OUTPUT ARGUMENT LIST: 
-!!     
-!!   OUTPUT FILES:
-!!     NONE
-!!     
-!!   SUBPROGRAMS CALLED:
-!!     UTILITIES:
-!!       BOUND    - ENFORCE LOWER AND UPPER LIMITS ON ARRAY ELEMENTS.
-!!       DEWPOINT - COMPUTE DEWPOINT TEMPERATURE.
-!!       CALDRG   - COMPUTE SURFACE LAYER DRAG COEFFICENT
-!!       CALTAU   - COMPUTE SURFACE LAYER U AND V WIND STRESSES.
-!!
-!!     LIBRARY:
-!!       COMMON   - CTLBLK
-!!                  RQSTFLD
-!!     
+!> @brief This routine posts surface-based fields.
+!>     
+!> ### Program history log:
+!> Date | Programmer | Comments
+!> -----|------------|---------
+!> 1992-12-21 | RUSS TREADON    | Initial
+!> 1994-08-04 | MICHAEL BALDWIN | ADDED OUTPUT OF SFC FLUXES OF SENS AND LATENT HEAT AND THETA AT Z0
+!> 1994-11-04 | MICHAEL BALDWIN | ADDED INSTANTANEOUS PRECIP TYPE
+!> 1996-03-19 | MICHAEL BALDWIN | CHANGE SOIL PARAMETERS
+!> 1996-09-25 | MICHAEL BALDWIN | ADDED SNOW RATIO FROM EXPLICIT SCHEME
+!> 1996-10-17 | MICHAEL BALDWIN | CHANGED SFCEVP,POTEVP TO ACCUM. TOOK OUT -PTRACE FOR ACSNOW,SSROFF,BGROFF.
+!> 1997-04-23 | MICHAEL BALDWIN | TOOK OUT -PTRACE FOR ALL PRECIP FIELDS
+!> 1998-06-12 | T BLACK         | CONVERSION FROM 1-D TO 2-D
+!> 1998-07-17 | MIKE BALDWIN | REMOVED LABL84
+!> 1998-08-18 | MIKE BALDWIN | COMPUTE RH OVER ICE
+!> 1998-12-22 | MIKE BALDWIN | BACK OUT RH OVER ICE
+!> 2000-01-04 | JIM TUCCILLO | MPI VERSION
+!> 2001-10-22 | H CHUANG     | MODIFIED TO PROCESS HYBRID MODEL OUTPUT
+!> 2002-06-11 | MIKE BALDWIN | WRF VERSION ASSUMING ALL ACCUM VARS HAVE BUCKETS THAT FILL FROM T=00H ON
+!> 2002-08-28 | H CHUANG      | COMPUTE FIELDS AT SHELTER LEVELS FOR WRF
+!> 2004-12-09 | H CHUANG      | ADD ADDITIONAL LSM FIELDS
+!> 2005-07-07 | BINBIN ZHOU   | ADD RSM MODEL
+!> 2005-08-24 | GEOFF MANIKIN | ADDED DOMINANT PRECIP TYPE
+!> 2011-02-06 | JUN WANG  | ADDED GRIB2 OPTION
+!> 2013-08-05 | S Moorthi | Eliminate unnecessary arrays (reduce memory) and some cosmetic changes
+!> 2014-02-26 | S Moorthi | threading datapd assignment
+!> 2014-11-26 | S Moorthi | cleanup and some bug fix (may be?)
+!> 2020-03-25 | J MENG    | remove grib1
+!> 2020-05-20 | J MENG    | CALRH unification with NAM scheme
+!> 2020-11-10 | J MENG    | USE UPP_PHYSICS MODULE
+!> 2021-03-11 | B Cui     | change local arrays to dimension (im,jsta:jend)
+!> 2021-04-01 | J MENG    | COMPUTATION ON DEFINED POINTS ONLY
+!> 2021-07-26 | W Meng    | Restrict computation from undefined grids
+!> 2021-10-31 | J MENG    | 2D DECOMPOSITION
+!> 2022-02-01 | E JAMES   | Cleaning up GRIB2 encoding for six variables that cause issues with newer wgrib2 builds in RRFS system.
+!> 2022-11-16 | E JAMES   | Adding dust from RRFS
+!> 2022-12-23 | E Aligo   | Read six winter weather diagnostics from model.
+!> 2023-01-24 | Sam Trahan | store hourly accumulated precip for IFI and bucket time
+!> 2023-02-11 | W Meng     | Add fix of time accumulation in bucket graupel for FV3 based models
+!> 2023-02-23 | E James    | Adding coarse PM from RRFS
+!> 2023-03-22 | S Trahan   | Fixed out-of-bounds access calling BOUND with wrong array dimensions
+!> 2023-04-21 | E James    | Enabling GSL precip type for RRFS
+!> 2023-05-19 | E James    | Cleaning up GRIB2 encoding for 1-h max precip rate
+!> 2023-06-15 | E James    | Correcting bug fix in GSL precip type for RRFS (use 1h pcp, not run total pcp)
+!> 2023-10-04 | W Meng     | Fix mismatched IDs from 526-530
+!> 2023-10-05 | E James    | Correcting bug fix in GSL precip type for RRFS (was using 1000x 1h pcp)
+!> 2024-01-23 | E James    | Using consistent snow ratio SR from history files throughout GSL precip type diagnosis.
+!> 2024-01-30 | A Jensen   | Comment out graupel precipitation warning. 
+!>     
+!> @note
+!> USAGE:    CALL SURFCE
+!> @note
+!> OUTPUT FILES:
+!>   NONE
+!> @note
+!> SUBPROGRAMS CALLED:
+!>   UTILITIES:
+!>     @li BOUND    - ENFORCE LOWER AND UPPER LIMITS ON ARRAY ELEMENTS.
+!>     @li DEWPOINT - COMPUTE DEWPOINT TEMPERATURE.
+!>     @li CALDRG   - COMPUTE SURFACE LAYER DRAG COEFFICENT
+!>     @li CALTAU   - COMPUTE SURFACE LAYER U AND V WIND STRESSES.
+!> @note
+!>   LIBRARY:
+!>     COMMON   - @li CTLBLK
+!>                @li RQSTFLD
+!>
+!--------------------------------------------------------------------
+!> SURFCE posts surface-based fields.
       SUBROUTINE SURFCE
 
 !
 !     
 !     INCLUDE GRID DIMENSIONS.  SET/DERIVE OTHER PARAMETERS.
 !
-      use vrbls4d, only: smoke, fv3dust
+      use vrbls4d, only: smoke, fv3dust, coarsepm
       use vrbls3d, only: zint, pint, t, pmid, q, f_rimef
       use vrbls2d, only: ths, qs, qvg, qv2m, tsnow, tg, smstav, smstot,       &
                          cmc, sno, snoavg, psfcavg, t10avg, snonc, ivgtyp,    &
@@ -96,7 +99,7 @@
                          snow_bucket1, rainc_bucket1, graup_bucket1,          &
                          frzrn_bucket, snow_acm, snow_bkt,                    &
                          shdmin, shdmax, lai, ch10,cd10,landfrac,paha,pahi,   &
-                         tecan,tetran,tedir,twa
+                         tecan,tetran,tedir,twa,IFI_APCP
       use soil,    only: stc, sllevel, sldpth, smc, sh2o
       use masks,   only: lmh, sm, sice, htm, gdlat, gdlon
       use physcons_post,only: CON_EPS, CON_EPSM1
@@ -165,7 +168,7 @@
       character(len=256) :: ffgfile
       character(len=256) :: arifile
 
-      logical file_exists
+      logical file_exists, need_ifi
 
       logical, parameter :: debugprint = .false.
 
@@ -359,7 +362,6 @@
 !     
 !        SURFACE RELATIVE HUMIDITY.
          IF (IGET(076)>0) THEN
-            CALL BOUND(RHSFC,H1,H100)
             if(grib=='grib2') then
              cfld=cfld+1
              fld_info(cfld)%ifld=IAVBLFLD(IGET(076))
@@ -368,7 +370,11 @@
                jj = jsta+j-1
                do i=1,iend-ista+1
                ii = ista+i-1
-                 datapd(i,j,cfld) = RHSFC(ii,jj)
+               if(RHSFC(ii,jj) /= spval) then
+                 datapd(i,j,cfld) = max(H1,min(H100,RHSFC(ii,jj)))
+               else
+                 datapd(i,j,cfld) = spval
+               endif
                enddo
              enddo
             endif
@@ -1015,7 +1021,7 @@
 ! ONLY OUTPUT NEW LSM FIELDS FOR NMM AND ARW BECAUSE RSM USES OLD SOIL TYPES
       IF (MODELNAME == 'NCAR'.OR. MODELNAME == 'NMM'                  &
         .OR. MODELNAME == 'FV3R' .OR. MODELNAME == 'RAPR') THEN
-!       write(0,*)'in surf,isltyp=',maxval(isltyp(1:im,jsta:jend)),   &
+!       write(*,*)'in surf,isltyp=',maxval(isltyp(1:im,jsta:jend)),   &
 !         minval(isltyp(1:im,jsta:jend)),'qwbs=',maxval(qwbs(1:im,jsta:jend)), &
 !         minval(qwbs(1:im,jsta:jend)),'potsvp=',maxval(potevp(1:im,jsta:jend)), &
 !         minval(potevp(1:im,jsta:jend)),'sno=',maxval(sno(1:im,jsta:jend)), &
@@ -2174,6 +2180,23 @@
            endif
          ENDIF
 !
+! E. James - 23 Feb 2023: COARSEPM from RRFS on lowest model level
+!
+         IF (IGET(1014)>0) THEN
+           GRID1=SPVAL
+           DO J=JSTA,JEND
+             DO I=ISTA,IEND
+             if(T(I,J,LM)/=spval.and.PMID(I,J,LM)/=spval.and.COARSEPM(I,J,LM,1)/=spval)&
+               GRID1(I,J) = (1./RD)*(PMID(I,J,LM)/T(I,J,LM))*COARSEPM(I,J,LM,1)/(1E9)
+             ENDDO
+           ENDDO
+           if(grib=='grib2') then
+             cfld=cfld+1
+             fld_info(cfld)%ifld=IAVBLFLD(IGET(1014))
+             datapd(1:iend-ista+1,1:jend-jsta+1,cfld) = GRID1(ista:iend,jsta:jend)
+           endif
+         ENDIF
+!
 !
 !     BLOCK 3.  ANEMOMETER LEVEL (10M) WINDS, THETA, AND Q.
 !
@@ -2678,6 +2701,11 @@
 !
 ! MAXIMUM INSTANTANEOUS PRECIPITATION RATE.
       IF (IGET(508)>0) THEN
+         IF (IFHR==0) THEN
+           ID(18) = 0
+         ELSE
+           ID(18) = IFHR - 1
+         ENDIF
 !-- PRATE_MAX in units of mm/h from NMMB history files
          GRID1=SPVAL
          DO J=JSTA,JEND
@@ -2685,16 +2713,17 @@
             if(PRATE_MAX(I,J)/=spval) GRID1(I,J)=PRATE_MAX(I,J)*SEC2HR
            ENDDO
          ENDDO
+         ITSRFC = NINT(TSRFC)
          if(grib=='grib2') then
            cfld=cfld+1
            fld_info(cfld)%ifld=IAVBLFLD(IGET(508))
            fld_info(cfld)%lvl=LVLSXML(1,IGET(508))
-           fld_info(cfld)%tinvstat=1
-           if (IFHR > 0) then
+           if(ITSRFC>0) then
              fld_info(cfld)%ntrange=1
            else
              fld_info(cfld)%ntrange=0
            endif
+           fld_info(cfld)%tinvstat=IFHR-ID(18)
 !$omp parallel do private(i,j,ii,jj)
            do j=1,jend-jsta+1
              jj = jsta+j-1
@@ -3771,17 +3800,22 @@
 
 !     PRECIPITATION BUCKETS - accumulated between output times
 !     'BUCKET TOTAL PRECIP '
-         IF (IGET(434)>0.) THEN
+         NEED_IFI = IGET(1007)>0 .or. IGET(1008)>0 .or. IGET(1009)>0 .or. IGET(1010)>0
+         IF (IGET(434)>0. .or. NEED_IFI) THEN
 !$omp parallel do private(i,j)
            DO J=JSTA,JEND
              DO I=ISTA,IEND
                IF (IFHR == 0) THEN
-                 GRID1(I,J) = 0.0
+                 IFI_APCP(I,J) = 0.0
                ELSE
-                 GRID1(I,J) = PCP_BUCKET(I,J)
+                 IFI_APCP(I,J) = PCP_BUCKET(I,J)
                ENDIF 
              ENDDO
            ENDDO
+           ! Note: IFI.F may replace IFI_APCP with other values where it is spval or 0
+         ENDIF
+
+         IF (IGET(434)>0.) THEN
            ID(1:25) = 0
            ITPREC     = NINT(TPREC)
 !mp
@@ -3804,7 +3838,7 @@
              IF(IFMIN >= 1)ID(18)=IFHR*60+IFMIN-IFINCR
            ENDIF
            IF (ID(18)<0) ID(18) = 0
-           if(grib=='grib2') then
+           if(grib=='grib2' .and. IGET(434)>0) then
              cfld=cfld+1
              fld_info(cfld)%ifld=IAVBLFLD(IGET(434))
              if(ITPREC>0) then
@@ -3826,7 +3860,7 @@
                jj = jsta+j-1
                do i=1,iend-ista+1
                ii = ista+i-1
-                 datapd(i,j,cfld) = GRID1(ii,jj)
+                 datapd(i,j,cfld) = IFI_APCP(ii,jj)
                enddo
              enddo
            endif
@@ -4071,6 +4105,10 @@
                 endif
                 fld_info(cfld)%ntrange=1
               end if
+              if(MODELNAME == 'GFS' .OR. MODELNAME == 'FV3R') then
+                fld_info(cfld)%ntrange=1
+                fld_info(cfld)%tinvstat=IFHR-ID(18)
+              endif
 !$omp parallel do private(i,j,ii,jj)
               do j=1,jend-jsta+1
                 jj = jsta+j-1
@@ -4338,7 +4376,7 @@
            IFINCR = NINT(PREC_ACC_DT1)
            if(grib=='grib2') then
              cfld=cfld+1
-             fld_info(cfld)%ifld=IAVBLFLD(IGET(518))
+             fld_info(cfld)%ifld=IAVBLFLD(IGET(526))
              if(fld_info(cfld)%ntrange==0) then
                if (ifhr==0 .and. ifmin==0) then
                  fld_info(cfld)%tinvstat=0
@@ -4372,7 +4410,7 @@
            IFINCR = NINT(PREC_ACC_DT1)
            if(grib=='grib2') then
              cfld=cfld+1
-             fld_info(cfld)%ifld=IAVBLFLD(IGET(519))
+             fld_info(cfld)%ifld=IAVBLFLD(IGET(527))
              if(fld_info(cfld)%ntrange==0) then
                if (ifhr==0 .and. ifmin==0) then
                  fld_info(cfld)%tinvstat=0
@@ -4406,7 +4444,7 @@
            IFINCR = NINT(PREC_ACC_DT1)
            if(grib=='grib2') then
              cfld=cfld+1
-             fld_info(cfld)%ifld=IAVBLFLD(IGET(520))
+             fld_info(cfld)%ifld=IAVBLFLD(IGET(528))
              if(fld_info(cfld)%ntrange==0) then
                if (ifhr==0 .and. ifmin==0) then
                  fld_info(cfld)%tinvstat=0
@@ -4441,7 +4479,7 @@
 !           if(me==0)print*,'maxval BUCKET1 SNOWFALL: ', maxval(GRID1)
            if(grib=='grib2') then
              cfld=cfld+1
-             fld_info(cfld)%ifld=IAVBLFLD(IGET(521))
+             fld_info(cfld)%ifld=IAVBLFLD(IGET(529))
              if(fld_info(cfld)%ntrange==0) then
                if (ifhr==0 .and. ifmin==0) then
                  fld_info(cfld)%tinvstat=0
@@ -4476,7 +4514,7 @@
 !            print*,'maxval BUCKET1 GRAUPEL: ', maxval(GRID1)
             if(grib=='grib2') then
               cfld=cfld+1
-              fld_info(cfld)%ifld=IAVBLFLD(IGET(522))
+              fld_info(cfld)%ifld=IAVBLFLD(IGET(530))
               if(fld_info(cfld)%ntrange==0) then
                 if (ifhr==0 .and. ifmin==0) then
                   fld_info(cfld)%tinvstat=0
@@ -4504,7 +4542,7 @@
                     freezr(ista:iend,jsta:jend,nalg), snow(ista:iend,jsta:jend,nalg))
            allocate(zwet(ista:iend,jsta:jend))
            CALL CALWXT_POST(T,Q,PMID,PINT,HTM,LMH,PREC,ZINT,IWX1,ZWET)
-!          write(0,*)' after first CALWXT_POST'
+!          write(*,*)' after first CALWXT_POST'
 
 
            IF (IGET(160)>0) THEN 
@@ -4574,12 +4612,12 @@
 ! BOURGOUIN ALGORITHM
              ISEED=44641*(INT(SDAT(1)-1)*24*31+INT(SDAT(2))*24+IHRST)+   &
      &             MOD(IFHR*60+IFMIN,44641)+4357
-!            write(0,*)'in SURFCE,me=',me,'bef 1st CALWXT_BOURG_POST iseed=',iseed
+!            write(*,*)'in SURFCE,me=',me,'bef 1st CALWXT_BOURG_POST iseed=',iseed
              CALL CALWXT_BOURG_POST(IM,ISTA_2L,IEND_2U,ISTA,IEND,JM,JSTA_2L,JEND_2U,JSTA,JEND,LM,LP1,&
      &                              ISEED,G,PTHRESH,                       &
      &                              T,Q,PMID,PINT,LMH,PREC,ZINT,IWX1,me)
-!            write(0,*)'in SURFCE,me=',me,'aft 1st CALWXT_BOURG_POST'
-!            write(0,*)'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA),'PTHRESH=',PTHRESH
+!            write(*,*)'in SURFCE,me=',me,'aft 1st CALWXT_BOURG_POST'
+!            write(*,*)'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA),'PTHRESH=',PTHRESH
 
 !     DECOMPOSE IWX1 ARRAY
 !
@@ -4758,7 +4796,7 @@
              ENDDO
            ENDDO
            if (allocated(zwet)) deallocate(zwet)
-!          write(0,*)' after second CALWXT_POST me=',me
+!          write(*,*)' after second CALWXT_POST me=',me
 !          print *,'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA)
 
 !     DOMINANT PRECIPITATION TYPE
@@ -4786,11 +4824,11 @@
 ! BOURGOUIN ALGORITHM
            ISEED=44641*(INT(SDAT(1)-1)*24*31+INT(SDAT(2))*24+IHRST)+   &
      &           MOD(IFHR*60+IFMIN,44641)+4357
-!          write(0,*)'in SURFCE,me=',me,'bef sec CALWXT_BOURG_POST'
+!          write(*,*)'in SURFCE,me=',me,'bef sec CALWXT_BOURG_POST'
            CALL CALWXT_BOURG_POST(IM,ISTA_2L,IEND_2U,ISTA,IEND,JM,JSTA_2L,JEND_2U,JSTA,JEND,LM,LP1,&
      &                        ISEED,G,PTHRESH,                            &
      &                        T,Q,PMID,PINT,LMH,AVGPREC,ZINT,IWX1,me)
-!          write(0,*)'in SURFCE,me=',me,'aft sec CALWXT_BOURG_POST'
+!          write(*,*)'in SURFCE,me=',me,'aft sec CALWXT_BOURG_POST'
 !          print *,'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA)
 
 !     DECOMPOSE IWX1 ARRAY
@@ -4808,7 +4846,7 @@
 
 ! REVISED NCEP ALGORITHM
            CALL CALWXT_REVISED_POST(T,Q,PMID,PINT,HTM,LMH,AVGPREC,ZINT,IWX1)
-!          write(0,*)'in SURFCE,me=',me,'aft sec CALWXT_REVISED_BOURG_POST'
+!          write(*,*)'in SURFCE,me=',me,'aft sec CALWXT_REVISED_BOURG_POST'
 !          print *,'in SURFCE,me=',me,'IWX1=',IWX1(1:30,JSTA)
 !     DECOMPOSE IWX1 ARRAY
 !
@@ -4825,7 +4863,7 @@
               
 ! EXPLICIT ALGORITHM (UNDER 18 NOT ADMITTED WITHOUT PARENT OR GUARDIAN)
  
-!          write(0,*)'in SURFCE,me=',me,'imp_physics=',imp_physics
+!          write(*,*)'in SURFCE,me=',me,'imp_physics=',imp_physics
            IF(imp_physics == 5)then
              CALL CALWXT_EXPLICIT_POST(LMH,THS,PMID,AVGPREC,SR,F_RimeF,IWX1)
            else
@@ -5092,30 +5130,58 @@
              ENDDO
            ENDDO
 
+           IF (MODELNAME .eq. 'FV3R') THEN
+             DO J=JSTA,JEND
+               DO I=ISTA,IEND
+                 SNOW_BUCKET(I,J) = SNOW_BKT(I,J)
+                 RAINNC_BUCKET(I,J) = 0.0
+               ENDDO
+             ENDDO
+           ENDIF
+
            DO J=JSTA,JEND
              DO I=ISTA,IEND
 !-- TOTPRCP is total 1-hour accumulated precipitation in  [m]
-               totprcp = (RAINC_BUCKET(I,J) + RAINNC_BUCKET(I,J))*1.e-3
+!-- RAP/HRRR and RRFS use 1-h bucket. GFS uses 3-h bucket
+!-- so this section will need to be revised for GFS
+               IF (MODELNAME .eq. 'FV3R') THEN
+                 if(AVGPREC(I,J)/=spval)then
+                   totprcp = (AVGPREC(I,J)*3600./DTQ2)
+                 else
+                   totprcp = 0.0
+                 endif
+               ELSE
+                 totprcp = (RAINC_BUCKET(I,J) + RAINNC_BUCKET(I,J))*1.e-3
+               ENDIF
                snowratio = 0.0
-               if(graup_bucket(i,j)*1.e-3 > totprcp)then
-                 print *,'WARNING - Graupel is higher that total precip at point',i,j
-                 print *,'totprcp,graup_bucket(i,j),snow_bucket(i,j),rainnc_bucket',&
-                          totprcp,graup_bucket(i,j),snow_bucket(i,j),rainnc_bucket(i,j)
-               endif
+!-- This following warning message prints too often and is being commented out by
+!-- Anders Jensen on 30 Jan 2024. I think that this warning message prints only when 
+!-- graupel alone is reaching the surface. Total precipitation is interpolated 
+!-- and precipitation from individual hydrometeor categories is not. Thus, when 
+!-- total precipitation equals graupel precipitation and total precipitation is 
+!-- interpolated and graupel precipitation is not, the two values may not be equal.
+!               if(graup_bucket(i,j)*1.e-3 > totprcp.and.graup_bucket(i,j)/=spval)then
+!                 print *,'WARNING - Graupel is higher than total precip at point',i,j
+!                 print *,'totprcp,graup_bucket(i,j)*1.e-3,snow_bucket(i,j),rainnc_bucket',&
+!                          totprcp,graup_bucket(i,j)*1.e-3,snow_bucket(i,j),rainnc_bucket(i,j)
+!               endif
 
 !  ---------------------------------------------------------------
 !  Minimum 1h precipitation to even consider p-type specification
 !      (0.0001 mm in 1h, very light precipitation)
 !  ---------------------------------------------------------------
-               if (totprcp-graup_bucket(i,j)*1.e-3 > 0.0000001)       &
+               if (totprcp-graup_bucket(i,j)*1.e-3 > 0.0000001) then
 !          snowratio = snow_bucket(i,j)*1.e-3/totprcp            ! orig
 !14aug15 - change from Stan and Trevor
 !  ---------------------------------------------------------------
 !      Snow-to-total ratio to be used below
 !  ---------------------------------------------------------------
-               snowratio = snow_bucket(i,j)*1.e-3 / (totprcp-graup_bucket(i,j)*1.e-3)
-
-!              snowratio = SR(i,j)
+                  IF(MODELNAME == 'FV3R') THEN
+                     snowratio = SR(i,j)
+                  ELSE
+                     snowratio = snow_bucket(i,j)*1.e-3 / (totprcp-graup_bucket(i,j)*1.e-3)
+                  ENDIF
+               endif
 !-- 2-m temperature
                t2 = TSHLTR(I,J)*(PSHLTR(I,J)*1.E-5)**CAPA
 !  ---------------------------------------------------------------
@@ -5124,7 +5190,7 @@
 !--   SNOW is time step non-convective snow [m]
 !     -- based on either instantaneous snowfall or 1h snowfall and
 !     snowratio
-               if( (SNOWNC(i,j)/DT > 0.2e-9 .and. snowratio>=0.25) &
+               if( (SNOWNC(i,j)/DT > 0.2e-9 .and. snowratio>=0.25 .and. SNOWNC(i,j)/=spval) &
                        .or.                                         &
                    (totprcp>0.00001.and.snowratio>=0.25)) then
                    DOMS(i,j) = 1.
@@ -5160,7 +5226,7 @@
 !-- graupel/ice pellets vs. snow or rain
 !  ---------------------------------------------------------------
 !-- GRAUPEL is time step non-convective graupel in [m]
-               if(GRAUPELNC(i,j)/DT > 1.e-9) then
+               if(GRAUPELNC(i,j)/DT > 1.e-9 .and. GRAUPELNC(i,j)/=spval) then
                  if (t2<=276.15) then
 !                 This T2m test excludes convectively based hail
 !                   from cold-season ice pellets.
@@ -5209,9 +5275,9 @@
            ENDDO
 
 
-        write (6,*)' Snow/rain ratio'
-        write (6,*)' max/min 1h-SNOWFALL in [cm]',   &
-              maxval(snow_bucket)*0.1,minval(snow_bucket)*0.1
+        !write (6,*)' Snow/rain ratio'
+        !write (6,*)' max/min 1h-SNOWFALL in [cm]',   &
+        !      maxval(snow_bucket)*0.1,minval(snow_bucket)*0.1
 
         DO J=JSTA,JEND
         DO I=ISTA,IEND
@@ -5224,10 +5290,10 @@
         end do
         end do
 
-        write (6,*) 'Snow ratio point counts'
-           do icat=1,10
-        write (6,*) icat, cnt_snowratio(icat)
-           end do
+        !write (6,*) 'Snow ratio point counts'
+        !   do icat=1,10
+        !write (6,*) icat, cnt_snowratio(icat)
+        !   end do
 
         icnt_snow_rain_mixed = 0
         DO J=JSTA,JEND
@@ -5238,8 +5304,8 @@
           end do
         end do
 
-        write (6,*) 'No. of mixed snow/rain p-type diagnosed=',   &
-            icnt_snow_rain_mixed
+        !write (6,*) 'No. of mixed snow/rain p-type diagnosed=',   &
+        !    icnt_snow_rain_mixed
 
 
 !     SNOW.
@@ -5326,7 +5392,7 @@
             enddo
            endif
 
-        ENDIF
+        ENDIF ! End of GSD PRECIPITATION TYPE
 !     
         if (allocated(psfc))  deallocate(psfc)
         if (allocated(domr))  deallocate(domr)
@@ -6660,15 +6726,18 @@
 
       RETURN
       END
+!-------------------------------------------------------------------------------------
+!> qpf_comp() Read in QPF threshold for exceedance grid. Calculate exceedance grid.
+!> 
+!> @param[in] compfile character File name for reference grid.
+!> @param[in] fcst integer Forecast length in hours.
+!> @param[in] igetfld integer ID of grib2 field. 
 
       subroutine qpf_comp(igetfld,compfile,fcst)
-!     Read in QPF threshold for exceedance grid.
-!     Calculate exceedance grid.
-!     compfile: file name for reference grid.
-!     fcst: forecast length in hours.
+
       use ctlblk_mod, only: SPVAL,JSTA,JEND,IM,DTQ2,IFHR,IFMIN,TPREC,GRIB,   &
                             MODELNAME,JM,CFLD,DATAPD,FLD_INFO,JSTA_2L,JEND_2U,&
-                            ISTA,IEND,ISTA_2L,IEND_2U
+                            ISTA,IEND,ISTA_2L,IEND_2U,ME
       use rqstfld_mod, only: IGET, ID, LVLS, IAVBLFLD
       use grib2_module, only: read_grib2_head, read_grib2_sngle
       use vrbls2d, only: AVGPREC, AVGPREC_CONT
@@ -6676,7 +6745,7 @@
       character(len=256), intent(in) :: compfile
       integer, intent(in) :: igetfld,fcst
       integer :: trange,invstat
-      real, dimension(IM,JM) :: outgrid
+      real, dimension(ista:iend,jsta:jend) :: outgrid
 
       real, allocatable, dimension(:,:) :: mscValue
 
@@ -6688,6 +6757,8 @@
       logical :: file_exists
 
       integer :: i, j, k, ii, jj
+
+      outgrid = 0
 
 !     Read in reference grid.
       INQUIRE(FILE=compfile, EXIST=file_exists)
@@ -6702,7 +6773,7 @@
          ntot = nx*ny
          call read_grib2_sngle(compfile,ntot,height,mscValue)
       else
-         write(*,*) 'WARNING: FFG file not available for hour: ', fcst
+         if(me==0)write(*,*) 'WARNING: FFG file not available for hour: ', fcst
       endif
 
 !     Set GRIB variables.
@@ -6739,13 +6810,9 @@
                   outgrid(I,J) = 1.0
                ELSE IF (fcst .GT. 1 .AND. AVGPREC_CONT(I,J)*FLOAT(IFHR)*3600.*1000./DTQ2 .GT. mscValue(I,J)) THEN
                   outgrid(I,J) = 1.0
-               ELSE
-                  outgrid(I,J) = 0.0
                ENDIF
             ENDDO
          ENDDO
-       ELSE
-         outgrid = 0.0*AVGPREC
        ENDIF
       ENDIF
 !      write(*,*) 'FFG MAX, MIN:', &

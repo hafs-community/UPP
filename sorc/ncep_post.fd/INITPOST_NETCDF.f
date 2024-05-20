@@ -2,7 +2,7 @@
 !> @brief initpost_netcdf() initializes post for run.
 !>
 !> @author Hui-Ya Chuang @date 2016-03-04
-
+!>
 !> This routine initializes constants and
 !> variables at the start of GFS model or post
 !> processor run.
@@ -27,21 +27,49 @@
 !> 2022-11-16 | Eric James    | Read smoke, dust, biomass burning, and hourly wildfire potential from RRFS
 !> 2022-12-07 | Wen Meng      | Read AOD from AQM model
 !> 2022-12-23 | Eric Aligo    | Read six winter weather diagnostics from model
+!> 2023-01-30 | Sam Trahan    | Read cldfra or cldfra_bl, whichever is available
+!> 2023-02-23 | Eric James    | Read coarse PM and aodtot from RRFS
+!> 2023-03-02 | Sam Trahan    | Read lightning threat index fields
+!> 2023-03-22 | WM Lewis      | Read RRFS effective radii (EFFRL, EFFRI, EFFRS)
+!> 2023-04-04 |Li(Kate Zhang)  |Add namelist optoin for CCPP-Chem(UFS-Chem) 
+!         and 2D diag. output (d2d_chem) for GEFS-Aerosols and CCPP-Chem model.
+!> 2023-04-17 | Eric James    | Read in unified ext550 extinction (and remove aodtot) for RRFS
+!> 2023-04-21 | Eric James    | Read in / calculate some fields needed for GSL p-type diagnosis for RRFS
+!> 2023-05-31 | Wen Meng      | Bug fix in qrmax initialization
+!> 2023-06-14 | Wen Meng      | Bug fix of reading seaswtc and modification of sndepac calculation
+!> 2023-07-06 | Eric James    | Read in SOILL on 9 levels for RRFS
+!> 2023-07-24 | Hui-Ya Chuang | Bug fix in tke inialization
+!> 2023-08-04 | Jaymes Kenyon | Read RRFS microphysics number concentrations (cloud water, cloud ice, rain)
+!> 2023-08-31 | Li(Kate Zhang)| Add condition to include/exclude processing nitrate from model output
+!> 2023-09-22 | Wen Meng      | Bug fix in cwm initialization
+!> 2023-10-17 | Eric James    | Including hail mixing ratio in calculation of hydrometeor VIL
+!>                              and cwm when present (NSSL microphysics)
+!> 2023-10-23 | Jaymes Kenyon | Read HAILCAST diagnostic output from RRFS
 !>
 !> @author Hui-Ya Chuang @date 2016-03-04
+!----------------------------------------------------------------------
+!> @brief INITPOST_NETCDF() This routine initializes constants and
+!> variables at the start of GFS model or post processor run. 
+!> 
+!> @param[in] ncid2d integer netCDF ID of physics model output file.
+!> @param[in] ncid3d integer netCDF ID of dynamics model output file.
+!----------------------------------------------------------------------
       SUBROUTINE INITPOST_NETCDF(ncid2d,ncid3d)
 
 
       use netcdf
-      use vrbls4d, only: dust, SALT, SUSO, SOOT, WASO, smoke, fv3dust, no3,nh4, PP25, PP10 
+      use vrbls4d, only: dust, SALT, SUSO, SOOT, WASO, smoke, fv3dust, coarsepm,                &
+              no3,nh4, PP25, PP10 
       use vrbls3d, only: t, q, uh, vh, pmid, pint, alpint, dpres, zint, zmid, o3,               &
-              qqr, qqs, cwm, qqi, qqw, omga, rhomid, q2, cfr, rlwtt, rswtt, tcucn,              &
+              qqr, qqnr, qqs, qqi, qqni, qqw, qqnw, qqg, qqh, cwm,                              &
+              omga, rhomid, q2, cfr, rlwtt, rswtt, tcucn,                                       &
               tcucns, train, el_pbl, exch_h, vdifftt, vdiffmois, dconvmois, nradtt,             &
               o3vdiff, o3prod, o3tndy, mwpv, unknown, vdiffzacce, zgdrag,cnvctummixing,         &
               vdiffmacce, mgdrag, cnvctvmmixing, ncnvctcfrac, cnvctumflx, cnvctdmflx,           &
               cnvctzgdrag, sconvmois, cnvctmgdrag, cnvctdetmflx, duwt, duem, dusd, dudp,        &
-              dusv,ssem,sssd,ssdp,sswt,sssv,bcem,bcsd,bcdp,bcwt,bcsv,ocem,ocsd,ocdp,ocwt,ocsv, &
-              wh, qqg, ref_10cm, qqnifa, qqnwfa, avgpmtf, avgozcon, aextc55, taod5503d
+              dusv,ssem,sssd,ssdp,sswt,sssv,bcem,bcsd,bcdp,bcwt,bcsv,ocem,ocsd,ocdp,ocwt,ocsv,  &
+              wh, ref_10cm, qqnifa, qqnwfa, avgpmtf, avgozcon, aextc55, taod5503d,              &
+              effri, effrl, effrs
 
       use vrbls2d, only: f, pd, fis, pblh, ustar, z0, ths, qs, twbs, qwbs, avgcprate,           &
               cprate, avgprec, prec, lspa, sno, sndepac, si, cldefi, th10, q10, tshltr, pshltr, &
@@ -55,7 +83,7 @@
               uz0, vz0, ptop, htop, pbot, hbot, ptopl, pbotl, ttopl, ptopm, pbotm, ttopm,       &
               ptoph, pboth, pblcfr, ttoph, runoff, tecan, tetran, tedir, twa, maxtshltr,        &
               mintshltr, maxrhshltr, fdnsst, acgraup, graup_bucket, acfrain, frzrn_bucket,      &
-              snow_acm, snow_bkt,                                                               &
+              snow_acm, snow_bkt, snownc, graupelnc, qrmax,                                     &
               minrhshltr, dzice, smcwlt, suntime, fieldcapa, htopd, hbotd, htops, hbots,        &
               cuppt, dusmass, ducmass, dusmass25, ducmass25, aswintoa,rel_vort_maxhy1,          &
               maxqshltr, minqshltr, acond, sr, u10h, v10h,refd_max, w_up_max, w_dn_max,         &
@@ -65,7 +93,7 @@
               alwoutc,alwtoac,aswoutc,aswtoac,alwinc,aswinc,avgpotevp,snoavg, &
               ti,aod550,du_aod550,ss_aod550,su_aod550,oc_aod550,bc_aod550,prate_max,maod,dustpm10, &
               dustcb,bccb,occb,sulfcb,sscb,dustallcb,ssallcb,dustpm,sspm,pp25cb,pp10cb,no3cb,nh4cb,&
-              pwat, ebb, hwp, aqm_aod550
+              pwat, ebb, hwp, aqm_aod550, ltg1_max,ltg2_max,ltg3_max, hail_maxhailcast
       use soil,  only: sldpth, sllevel, sh2o, smc, stc
       use masks, only: lmv, lmh, htm, vtm, gdlat, gdlon, dx, dy, hbm2, sm, sice
       use physcons_post, only: grav => con_g, fv => con_fvirt, rgas => con_rd,                     &
@@ -78,9 +106,9 @@
               jend_m, imin, imp_physics, dt, spval, pdtop, pt, qmin, nbin_du, nphs, dtq2, ardlw,&
               ardsw, asrfc, avrain, avcnvc, theat, gdsdegr, spl, lsm, alsl, im, jm, im_jm, lm,  &
               jsta_2l, jend_2u, nsoil, lp1, icu_physics, ivegsrc, novegtype, nbin_ss, nbin_bc,  &
-              nbin_oc, nbin_su, nbin_no3, nbin_nh4, gocart_on, nasa_on, pt_tbl, hyb_sigp,       &
-              filenameFlux, fileNameAER,                                                        &
-              iSF_SURFACE_PHYSICS,rdaod, modelname, aqf_on,                         &
+              nbin_oc, nbin_su, nbin_no3, nbin_nh4, gocart_on,gccpp_on, nasa_on,pt_tbl,hyb_sigp,&
+              filenameFlux, fileNameAER,                                               &
+              iSF_SURFACE_PHYSICS,rdaod, d2d_chem, modelname, aqf_on,                         &
               ista, iend, ista_2l, iend_2u,iend_m
       use gridspec_mod, only: maptype, gridtype, latstart, latlast, lonstart, lonlast, cenlon,  &
               dxval, dyval, truelat2, truelat1, psmapf, cenlat,lonstartv, lonlastv, cenlonv,    &
@@ -153,7 +181,7 @@
       integer ii,jj,js,je,iyear,imn,iday,itmp,ioutcount,istatus,       &
               I,J,L,ll,k,kf,irtn,igdout,n,Index,nframe,                &
               nframed2,iunitd3d,ierr,idum,iret,nrec,idrt
-      integer ncid3d,ncid2d,varid,nhcas
+      integer ncid3d,ncid2d,varid,nhcas,varid_bl,iret_bl
       real    TSTART,TLMH,TSPH,ES,FACT,soilayert,soilayerb,zhour,dum,  &
               tvll,pmll,tv, tx1, tx2
 
@@ -192,16 +220,16 @@
       real, allocatable :: div3d(:,:,:)
       real(kind=4),allocatable :: vcrd(:,:)
       real                     :: dum_const 
-      real, allocatable :: extsmoke(:,:,:), extdust(:,:,:)
+      real, allocatable :: ext550(:,:,:)
 
       if (modelname == 'FV3R') then
-         allocate(extsmoke(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
-         allocate(extdust(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
+         allocate(ext550(ista_2l:iend_2u,jsta_2l:jend_2u,lm))
       endif
 
 !***********************************************************************
 !     START INIT HERE.
 !
+      if(me==0)then
       WRITE(6,*)'INITPOST:  ENTER INITPOST_NETCDF'
       WRITE(6,*)'me=',me,  &
            'jsta_2l=',jsta_2l,'jend_2u=', &
@@ -209,6 +237,7 @@
            'ista_2l=',ista_2l,'iend_2u=',iend_2u, &
            'ista=',ista,'iend=',iend, &
            'iend_m=',iend_m
+      endif
 !     
       isa = (ista+iend) / 2
       jsa = (jsta+jend) / 2
@@ -229,10 +258,10 @@
       end if 
       Status=nf90_get_att(ncid3d,nf90_global,'idrt',idrt)
       if(Status/=0)then
-       print*,'idrt not in netcdf file,reading grid'
+       if(me==0)print*,'idrt not in netcdf file,reading grid'
        Status=nf90_get_att(ncid3d,nf90_global,'grid',varcharval)
        if(Status/=0)then
-        print*,'idrt and grid not in netcdf file, set default to latlon'
+        if(me==0)print*,'idrt and grid not in netcdf file, set default to latlon'
         idrt=0
         MAPTYPE=0
        else
@@ -372,8 +401,8 @@
           dyval=dum_const*gdsdegr
          end if
 
-         print*,'lonstart,latstart,dyval,dxval', &
-         lonstart,lonlast,latstart,latlast,dyval,dxval
+!         print*,'lonstart,latstart,dyval,dxval', &
+!         lonstart,lonlast,latstart,latlast,dyval,dxval
 
 ! Jili Dong add support for regular lat lon (2019/03/22) end 
  
@@ -450,9 +479,9 @@
           end if
 
           STANDLON = cenlon
-          print*,'lonstart,latstart,cenlon,cenlat,truelat1,truelat2, &
-                  stadlon,dyval,dxval', &
-          lonstart,latstart,cenlon,cenlat,truelat1,truelat2,standlon,dyval,dxval
+!          print*,'lonstart,latstart,cenlon,cenlat,truelat1,truelat2, &
+!                  stadlon,dyval,dxval', &
+!          lonstart,latstart,cenlon,cenlat,truelat1,truelat2,standlon,dyval,dxval
 
         else if(trim(varcharval)=='gaussian')then
          MAPTYPE=4
@@ -493,18 +522,19 @@
 
       Status=nf90_get_att(ncid3d,nf90_global,'nhcas',nhcas)
       if(Status/=0)then
-       print*,'nhcas not in netcdf file, set default to nonhydro'
+      if(me==0) print*,'nhcas not in netcdf file, set default to nonhydro'
        nhcas=0
       end if
       if(me==0)print*,'nhcas= ',nhcas
       if (nhcas == 0 ) then  !non-hydrostatic case
-       nrec=18
+       nrec=22
        allocate (recname(nrec))
        recname=[character(len=20) :: 'ugrd','vgrd','spfh','tmp','o3mr', &
                                      'presnh','dzdt', 'clwmr','dpres',  &
                                      'delz','icmr','rwmr',              &
-                                     'snmr','grle','smoke','dust',      &
-                                     'smoke_ext','dust_ext']
+                                     'snmr','grle','hail','smoke',      &
+                                     'dust','coarsepm','ext550',        &
+                                     'nicp','water_nc','rain_nc']
       else
        nrec=8
        allocate (recname(nrec))
@@ -512,7 +542,7 @@
                                      'hypres', 'clwmr','dpres']
       endif
 
-!     write(0,*)'nrec=',nrec
+!     write(*,*)'nrec=',nrec
       !allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
       allocate(glat1d(jm),glon1d(im))
 
@@ -526,9 +556,9 @@
       else
        Status=nf90_get_att(ncid3d,varid,'units',varcharval)
        if(Status/=0)then
-         print*,'time unit not available'
+         if(me==0)print*,'time unit not available'
        else
-         print*,'time unit read from netcdf file= ',varcharval
+         if(me==0)print*,'time unit read from netcdf file= ',varcharval
 ! assume use hours as unit
 !       idate_loc=index(varcharval,'since')+6
          read(varcharval,101)idate(1),idate(2),idate(3),idate(4),idate(5)
@@ -544,7 +574,7 @@
 !       end if
       end if
  101  format(T13,i4,1x,i2,1x,i2,1x,i2,1x,i2)
-      print*,'idate= ',idate(1:5)
+      !print*,'idate= ',idate(1:5)
 
 ! Jili Dong check output format for coordinate reading
       Status=nf90_inq_varid(ncid3d,'grid_xt',varid)
@@ -628,7 +658,7 @@
 ! Jili Dong add support for regular lat lon (2019/03/22) end 
 
       end if
-      print*,'lonstart,lonlast ',lonstart,lonlast 
+!      print*,'lonstart,lonlast ',lonstart,lonlast 
 ! Jili Dong add support for new write component output
 ! get latitude
       if (read_lonlat) then
@@ -677,7 +707,7 @@
          latnw    = nint(dummy(1,jm)*gdsdegr)
         end if
       end if
-      print*,'laststart,latlast = ',latstart,latlast
+      !print*,'laststart,latlast = ',latstart,latlast
       if(debugprint)print*,'me sample gdlon gdlat= ' &
      ,me,gdlon(isa,jsa),gdlat(isa,jsa)
 
@@ -707,18 +737,18 @@
 
       deallocate(glat1d,glon1d)
 
-      print*,'idate = ',(idate(i),i=1,7)
+!      print*,'idate = ',(idate(i),i=1,7)
 !      print*,'nfhour = ',nfhour
       
 ! sample print point
       ii = im/2
       jj = jm/2
       
-      print *,me,'max(gdlat)=', maxval(gdlat),  &
-                 'max(gdlon)=', maxval(gdlon)
+!      print *,me,'max(gdlat)=', maxval(gdlat),  &
+!                 'max(gdlon)=', maxval(gdlon)
       CALL EXCH(gdlat(ISTA_2L,JSTA_2L))
       CALL EXCH(gdlon(ISTA_2L,JSTA_2L))
-      print *,'after call EXCH,me=',me
+!      print *,'after call EXCH,me=',me
 
 !$omp parallel do private(i,j,ip1)
       do j = jsta, jend_m
@@ -757,9 +787,11 @@
       jdate = 0
       idate = 0 
 !
+      if(me==0)then
       print*,'start yr mo day hr min =',iyear,imn,iday,ihrst,imin
       print*,'processing yr mo day hr min='                            &
              ,idat(3),idat(1),idat(2),idat(4),idat(5)
+      endif
 !
       idate(1) = iyear
       idate(2) = imn
@@ -775,21 +807,21 @@
       jdate(5) = idat(4)
       jdate(6) = idat(5)
 !
-      print *,' idate=',idate
-      print *,' jdate=',jdate
+      !print *,' idate=',idate
+      !print *,' jdate=',jdate
 !
       CALL W3DIFDAT(JDATE,IDATE,0,RINC)
 !
-      print *,' rinc=',rinc
+!      print *,' rinc=',rinc
       ifhr = nint(rinc(2)+rinc(1)*24.)
-      print *,' ifhr=',ifhr
+      !print *,' ifhr=',ifhr
       ifmin = nint(rinc(3))
 !      if(ifhr /= nint(fhour))print*,'find wrong Grib file';stop
-      print*,' in INITPOST ifhr ifmin fileName=',ifhr,ifmin,fileName
+!      print*,' in INITPOST ifhr ifmin fileName=',ifhr,ifmin,fileName
       
 ! Getting tstart
       tstart = 0.
-      print*,'tstart= ',tstart
+      !print*,'tstart= ',tstart
       
 ! Getiing restart
       
@@ -805,9 +837,9 @@
         SDAT(2) = idate(3)
         SDAT(3) = idate(1)
         IHRST   = idate(5)       
-        print*,'new forecast hours for restrt run= ',ifhr
-        print*,'new start yr mo day hr min =',sdat(3),sdat(1)           &
-               ,sdat(2),ihrst,imin
+        !print*,'new forecast hours for restrt run= ',ifhr
+        !print*,'new start yr mo day hr min =',sdat(3),sdat(1)           &
+        !       ,sdat(2),ihrst,imin
       END IF 
       
 ! GFS does not need DT to compute accumulated fields, set it to one
@@ -857,23 +889,44 @@
        spval,recname(13),qqs(ista_2l,jsta_2l,1),lm)
        call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
        spval,recname(14),qqg(ista_2l,jsta_2l,1),lm)
+       call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+       spval,recname(15),qqh(ista_2l,jsta_2l,1),lm)
 ! read for regional FV3
        if (modelname == 'FV3R') then
        call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-       spval,recname(15),smoke(ista_2l,jsta_2l,1,1),lm)
+       spval,recname(16),smoke(ista_2l,jsta_2l,1,1),lm)
        call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-       spval,recname(16),fv3dust(ista_2l,jsta_2l,1,1),lm)
+       spval,recname(17),fv3dust(ista_2l,jsta_2l,1,1),lm)
+       call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+       spval,recname(18),coarsepm(ista_2l,jsta_2l,1,1),lm)
        call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-       spval,recname(17),extsmoke(ista_2l,jsta_2l,1),lm)
-       call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-       spval,recname(18),extdust(ista_2l,jsta_2l,1),lm)
+       spval,recname(19),ext550(ista_2l,jsta_2l,1),lm)
+       call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+       spval,recname(20),qqni(ista_2l,jsta_2l,1),lm)
+       call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+       spval,recname(21),qqnw(ista_2l,jsta_2l,1),lm)
+       call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+       spval,recname(22),qqnr(ista_2l,jsta_2l,1),lm)
        endif
+
+! Compute max QRAIN in the column to be used later in precip type computation
+       do j = jsta_2l, jend_2u
+        do i = ista_2l, iend_2u
+           qrmax(i,j)=0.
+        end do
+       end do
 
 ! calculate CWM from FV3 output
        do l=1,lm
        do j=jsta,jend
          do i=ista,iend
-            cwm(i,j,l)=qqg(i,j,l)+qqs(i,j,l)+qqr(i,j,l)+qqi(i,j,l)+qqw(i,j,l)
+            if(qqr(i,j,l) /= spval) then
+              qrmax(i,j)=max(qrmax(i,j),qqr(i,j,l))
+              cwm(i,j,l)=qqg(i,j,l)+qqs(i,j,l)+qqr(i,j,l)+qqi(i,j,l)+qqw(i,j,l)
+              if(qqh(i,j,l) /= spval) then
+                cwm(i,j,l)=cwm(i,j,l)+qqh(i,j,l)
+              endif
+            endif
          enddo
        enddo
        if(debugprint)print*,'sample l,t,q,u,v,w= ',isa,jsa,l &
@@ -889,14 +942,45 @@
         call read_netcdf_3d_para(ncid3d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
         spval,VarName,cfr(ista_2l,jsta_2l,1),lm)
       else
-        VarName='cldfra'
-        call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-        spval,VarName,cfr(ista_2l,jsta_2l,1),lm)
+
+        iret_bl = nf90_inq_varid(ncid2d,'cldfra_bl',varid_bl)
+        iret = nf90_inq_varid(ncid2d,'cldfra',varid)
+
+        if(iret_bl==NF90_NOERR .and. iret==NF90_NOERR) then
+          write(*,*) 'WARNING: BOTH cldfra_bl AND cldfra ARE AVAILABLE. USING cldfra.'
+          VarName='cldfra'
+        else if(iret_bl==NF90_NOERR) then
+          VarName='cldfra_bl'
+        else if(iret==NF90_NOERR) then
+          VarName='cldfra'
+        else
+          VarName='nope'
+        endif
+          
+        if(VarName /= 'nope') then
+          call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+               spval,VarName,cfr(ista_2l,jsta_2l,1),lm)
+        endif
       endif
 !      do l=1,lm
 !       if(debugprint)print*,'sample ',VarName,'isa,jsa,l =' &
 !          ,cfr(isa,jsa,l),isa,jsa,l
 !      enddo
+
+!     WL add cieffr for Thompson scheme cloud ice effective radius
+      VarName='cieffr'
+      call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,effri(ista_2l,jsta_2l,1),lm)
+
+!     WL add cleffr for Thompson scheme cloud water effective radius
+      VarName='cleffr'
+      call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,effrl(ista_2l,jsta_2l,1),lm)
+
+!     WL add cseffr for Thompson scheme snow effective radius
+      VarName='cseffr'
+      call read_netcdf_3d_para(ncid2d,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,effrs(ista_2l,jsta_2l,1),lm)
 
 !=====================================
 ! For AQF Hourly average field PM2.5
@@ -973,6 +1057,11 @@
       call read_netcdf_2d_para(ncid3d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
       spval,VarName,rel_vort_maxhy1(ista_2l,jsta_2l))
      if(debugprint)print*,'sample ',VarName,' =',rel_vort_maxhy1(isa,jsa)
+! HAILCAST maximum hail diameter (mm) since last output
+      VarName='hailcast_dhail'
+      call read_netcdf_2d_para(ncid3d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,hail_maxhailcast(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',hail_maxhailcast(isa,jsa)
 ! biomass burning emissions
       VarName='ebb_smoke_hr'
       call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
@@ -984,6 +1073,24 @@
       spval,VarName,hwp(ista_2l,jsta_2l))
      if(debugprint)print*,'sample ',VarName,' =',hwp(isa,jsa)
       endif
+
+! lightning threat index 1
+      VarName='ltg1_max'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ltg1_max(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',ltg1_max(isa,jsa)
+
+! lightning threat index 2
+      VarName='ltg2_max'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ltg2_max(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',ltg2_max(isa,jsa)
+
+! lightning threat index 3
+      VarName='ltg3_max'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,ltg3_max(ista_2l,jsta_2l))
+     if(debugprint)print*,'sample ',VarName,' =',ltg3_max(isa,jsa)
 
 ! surface pressure
       VarName='pressfc'
@@ -1089,9 +1196,7 @@
       end do
 
       
-      print *, 'gocart_on=',gocart_on
-      print *, 'nasa_on=',nasa_on
-      if (gocart_on .or. nasa_on) then
+      if (gocart_on .or.gccpp_on .or. nasa_on) then
 
 ! GFS output dust in nemsio (GOCART)
         dustcb=0.0
@@ -1243,7 +1348,7 @@
         sulfcb=0.0
 
 !       SUSO = SPVAL
-        if (gocart_on) then
+        if (gocart_on .or. gccpp_on) then
         VarName='sulf'
         endif
 
@@ -1285,6 +1390,7 @@
 !$omp parallel do private(i,j)
           do j=jsta,jend
           do i=ista,iend
+          if ((dt1(i,j,l) /= spval ) .and. (dt2(i,j,l) /= spval) .and. (dt3(i,j,l) /= spval)) then
           no3(i,j,l,1)=dt1(i,j,l)
           no3(i,j,l,2)=dt2(i,j,l)
           no3(i,j,l,3)=dt3(i,j,l)
@@ -1292,6 +1398,12 @@
             no3cb(i,j)=no3cb(i,j)+ &
         (no3(i,j,l,1)+no3(i,j,l,2)+no3(i,j,l,3))* &
            dpres(i,j,l)/grav
+          else
+          no3(i,j,l,1)=0.0
+          no3(i,j,l,2)=0.0
+          no3(i,j,l,3)=0.0
+          endif
+          
            enddo
            enddo
         end do ! do loop for l
@@ -1321,7 +1433,7 @@
 ! GFS output pp25 in nemsio (GOCART)
         pp25cb=0.0
 
-        if (gocart_on) then
+        if (gocart_on .or. gccpp_on) then
         VarName='pp25'
         endif
 
@@ -1334,7 +1446,7 @@
 
 ! GFS output pp10 in nemsio (GOCART)
         pp10cb=0.0
-        if (gocart_on) then
+        if (gocart_on .or. gccpp_on) then
         VarName='pp10'
         endif
 
@@ -1434,7 +1546,7 @@
        sspm(i,j)=(salt(i,j,l,1)+salt(i,j,l,2)+ &
        0.83*salt(i,j,l,3))*RHOMID(i,j,l)  !ug/m3 
 
-       if (gocart_on) then
+       if (gocart_on .or. gccpp_on) then
 !      PM10 concentration
        dusmass(i,j)=(dust(i,j,l,1)+dust(i,j,l,2)+dust(i,j,l,3)+ &
        0.74*dust(i,j,l,4)+salt(i,j,l,1)+salt(i,j,l,2)+salt(i,j,l,3)+ &
@@ -1490,7 +1602,7 @@
       VarName='IVEGSRC'
       Status=nf90_get_att(ncid2d,nf90_global,'IVEGSRC',IVEGSRC)
       if (Status /= 0) then
-       print*,VarName,' not found-Assigned 1 for IGBP as default'
+       if(me==0)print*,VarName,' not found-Assigned 1 for IGBP as default'
        IVEGSRC=1
       end if
       if (me == 0) print*,'IVEGSRC= ',IVEGSRC
@@ -1531,7 +1643,7 @@
         tsrfc   = tprec
         tmaxmin = tprec
         td3d    = tprec
-        print*,'tprec = ',tprec
+        !print*,'tprec = ',tprec
 
 
       VarName='refl_10cm'
@@ -1549,7 +1661,7 @@
       do l=1,lm
       do j=jsta,jend
       do i=ista,iend
-        q2(i,j,l)=q2(i,j,l)/2.0
+        if(q2(i,j,l)/=spval) q2(i,j,l)=q2(i,j,l)/2.0
       enddo
       enddo
       enddo
@@ -1651,6 +1763,16 @@
       call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
       spval,VarName,frzrn_bucket)
 
+! time step snow (in m)
+      VarName='snow'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,snownc)
+
+! time step graupel (in m)
+      VarName='graupel'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,graupelnc)
+
 ! aerodynamic conductance
       VarName='acond'
       call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
@@ -1679,7 +1801,7 @@
       do j=jsta,jend
         do i=ista,iend
           if (ths(i,j) /= spval) then
-!    write(0,*)' i=',i,' j=',j,' ths=',ths(i,j),' pint=',pint(i,j,lp1)
+!    write(*,*)' i=',i,' j=',j,' ths=',ths(i,j),' pint=',pint(i,j,lp1)
             ths(i,j) = ths(i,j) * (p1000/pint(i,j,lp1))**capa
           endif
           QS(i,j)    = SPVAL ! GFS does not have surface specific humidity
@@ -2165,6 +2287,70 @@
       enddo
      if(debugprint)print*,'sample l',VarName,' = ',1,sh2o(isa,jsa,4)
 
+      IF (NSOIL==9) THEN
+
+      VarName='soill5'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,sh2o(ista_2l,jsta_2l,5))
+!     mask water areas
+!$omp parallel do private(i,j)
+      do j=jsta,jend
+        do i=ista,iend
+          if (sm(i,j) /= 0.0) sh2o(i,j,5) = spval
+        enddo
+      enddo
+     if(debugprint)print*,'sample l',VarName,' = ',1,sh2o(isa,jsa,5)
+
+      VarName='soill6'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,sh2o(ista_2l,jsta_2l,6))
+!     mask water areas
+!$omp parallel do private(i,j)
+      do j=jsta,jend
+        do i=ista,iend
+          if (sm(i,j) /= 0.0) sh2o(i,j,6) = spval
+        enddo
+      enddo
+     if(debugprint)print*,'sample l',VarName,' = ',1,sh2o(isa,jsa,6)
+
+      VarName='soill7'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,sh2o(ista_2l,jsta_2l,7))
+!     mask water areas
+!$omp parallel do private(i,j)
+      do j=jsta,jend
+        do i=ista,iend
+          if (sm(i,j) /= 0.0) sh2o(i,j,7) = spval
+        enddo
+      enddo
+     if(debugprint)print*,'sample l',VarName,' = ',1,sh2o(isa,jsa,7)
+
+      VarName='soill8'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,sh2o(ista_2l,jsta_2l,8))
+!     mask water areas
+!$omp parallel do private(i,j)
+      do j=jsta,jend
+        do i=ista,iend
+          if (sm(i,j) /= 0.0) sh2o(i,j,8) = spval
+        enddo
+      enddo
+     if(debugprint)print*,'sample l',VarName,' = ',1,sh2o(isa,jsa,8)
+
+      VarName='soill9'
+      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
+      spval,VarName,sh2o(ista_2l,jsta_2l,9))
+!     mask water areas
+!$omp parallel do private(i,j)
+      do j=jsta,jend
+        do i=ista,iend
+          if (sm(i,j) /= 0.0) sh2o(i,j,9) = spval
+        enddo
+      enddo
+     if(debugprint)print*,'sample l',VarName,' = ',1,sh2o(isa,jsa,9)
+
+      END IF
+
 ! volumetric soil moisture using nemsio
       VarName='soilw1'
       call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
@@ -2407,8 +2593,8 @@
        do l = 1, lm
         do j = jsta_2l, jend_2u
          do i = ista_2l, iend_2u
-          if(extsmoke(i,j,l)<spval.and.extdust(i,j,l)<spval)then
-            taod5503d ( i, j, l) = extsmoke ( i, j, l ) + extdust ( i, j, l )
+          if(ext550(i,j,l)<spval)then
+            taod5503d ( i, j, l) = ext550 ( i, j, l )
             dz = ZINT( i, j, l ) - ZINT( i, j, l+1 )
             aextc55 ( i, j, l ) = taod5503d ( i, j, l ) / dz
           endif
@@ -2421,8 +2607,7 @@
          end do
         end do
        end do
-       deallocate(extsmoke)
-       deallocate(extdust)
+       deallocate(ext550)
       end if
 
 !$omp parallel do private(i,j)
@@ -2815,18 +3000,6 @@
           smstav(i,j) = buf(i,j)
         enddo
       enddo
-      VarName='accswe_land'
-      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-      spval,VarName,buf)
-      VarName='accswe_ice'
-      call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
-      spval,VarName,buf2)
-!$omp parallel do private(i,j)
-      do j = jsta_2l, jend_2u
-        do i=ista,iend
-          acsnow(i,j) = buf(i,j) + buf2(i,j)
-        enddo
-      enddo
       VarName='snacc_land'
       call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
       spval,VarName,buf)
@@ -2836,7 +3009,13 @@
 !$omp parallel do private(i,j)
       do j = jsta_2l, jend_2u
         do i=ista,iend
-          sndepac(i,j) = buf(i,j) + buf2(i,j)
+          if(buf(i,j)<spval) then
+            sndepac(i,j) = buf(i,j)
+          elseif(buf2(i,j)<spval) then
+            sndepac(i,j) = buf2(i,j)
+          else
+            sndepac(i,j) = spval
+          endif
         enddo
       enddo
 !$omp parallel do private(i,j)
@@ -3315,9 +3494,7 @@
       enddo
 
 
-      print *, 'gocart_on=',gocart_on
-      print *, 'nasa_on=',nasa_on
-      if (gocart_on) then
+      if ((gocart_on .or. gccpp_on) .and. d2d_chem) then
 
 
 ! retrieve dust emission fluxes
@@ -3433,10 +3610,10 @@
 ! retrieve seasalt scavenging fluxes
       do K = 1, nbin_ss
        if ( K == 1) VarName='seas1wtc'
-       if ( K == 2) VarName='seas1wtc'
-       if ( K == 3) VarName='seas1wtc'
-       if ( K == 4) VarName='seas1wtc'
-       if ( K == 5) VarName='seas1wtc'
+       if ( K == 2) VarName='seas2wtc'
+       if ( K == 3) VarName='seas3wtc'
+       if ( K == 4) VarName='seas4wtc'
+       if ( K == 5) VarName='seas5wtc'
       call read_netcdf_2d_para(ncid2d,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u,&
       spval,VarName,chem_2d)
       sssv(1:im,jsta_2l:jend_2u,K)=chem_2d(1:im,jsta_2l:jend_2u)
@@ -3687,7 +3864,25 @@
       RETURN
       END
 
-
+!----------------------------------------------------------------------
+!> @brief read_netcdf_3d_para() reads dynamics variables from UFS model output. 
+!> 
+!> @param[in] ncid integer netCDF ID.
+!> @param[in] im integer Full longitude domain.
+!> @param[in] jm integer Full latitude domain.
+!> @param[in] ista integer Start longitude latitude on a task subdomain.
+!> @param[in] ista_2l integer Start longitude -2 of the subdomain.
+!> @param[in] iend integer End longitude on a task subdomain.
+!> @param[in] iend_2u integer End longitude +2 of the subdomain.
+!> @param[in] jsta integer Start latitude on a task subdomain.
+!> @param[in] jsta_2l integer Start latitude -2 of the subdomain.
+!> @param[in] jend integer End latitude on a task subdomain.
+!> @param[in] jend_2u integer End latitude +2 of the subdomain.
+!> @param[in] spval real Missing value defined in UPP.
+!> @param[in] varname character Variable name in netCDF file.
+!> @param[out] buf real Variable values.
+!> @param[in] lm integer Model levels.
+!----------------------------------------------------------------------
       subroutine read_netcdf_3d_para(ncid,im,jm,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
                  spval,varname,buf,lm)
 
@@ -3739,6 +3934,23 @@
       endif
 
       end subroutine read_netcdf_3d_para
+
+!----------------------------------------------------------------------
+!> @brief read_netcdf_2d_para() reads physics variables from UFS model output. 
+!> 
+!> @param[in] ncid integer netCDF ID.
+!> @param[in] ista integer Start longitude latitude on a task subdomain.
+!> @param[in] ista_2l integer Start longitude -2 of the subdomain.
+!> @param[in] iend integer End longitude on a task subdomain.
+!> @param[in] iend_2u integer End longitude +2 of the subdomain.
+!> @param[in] jsta integer Start latitude on a task subdomain.
+!> @param[in] jsta_2l integer Start latitude -2 of the subdomain.
+!> @param[in] jend integer End latitude on a task subdomain.
+!> @param[in] jend_2u integer End latitude +2 of the subdomain.
+!> @param[in] spval real Missing value defined in UPP.
+!> @param[in] varname character Variable name in netCDF file.
+!> @param[out] buf real Variable values.
+!----------------------------------------------------------------------
 
       subroutine read_netcdf_2d_para(ncid,ista,ista_2l,iend,iend_2u,jsta,jsta_2l,jend,jend_2u, &
                  spval,VarName,buf)

@@ -118,14 +118,6 @@
        </param>
 
        <param>
-       <shortname>RIME_ON_HYBRID_LVL</shortname>
-       <pname>RIME</pname>
-       <table_info>NCEP</table_info>
-       <level>1. 2.</level>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
        <shortname>TCOND_ON_HYBRID_LVL</shortname>
        <pname>TCOND</pname>
        <table_info>NCEP</table_info>
@@ -136,7 +128,6 @@
        <param>
        <shortname>REFD_ON_HYBRID_LVL</shortname>
        <pname>REFD</pname>
-       <table_info>NCEP</table_info>
        <level>1. 2.</level>
        <scale>4.0</scale>
        </param>
@@ -224,7 +215,8 @@
        <param>
        <shortname>ABSV_ON_ISOBARIC_SFC</shortname>
        <pname>ABSV</pname>
-       <level>20000. 25000. 30000. 40000. 50000. 70000. 75000. 85000. 92500. 100000.</level>
+       <level>200. 500. 700. 1000. 2000. 3000. 5000. 7000. 10000. 12500. 15000. 17500. 20000. 22500. 25000. 27500. 30000. 32500. 35000. 37500. 40000. 42500. 45000. 
+47500. 50000. 52500. 55000. 57500. 60000. 62500. 65000. 67500. 70000. 72500. 75000. 77500. 80000. 82500. 85000. 87500. 90000. 92500. 95000. 97500. 100000.</level>
        <scale>4.0</scale>
        </param>
 
@@ -276,16 +268,38 @@
        </param>
 
        <param>
+       <shortname>MCONV_ON_ISOBARIC_SFC</shortname>
+       <pname>MCONV</pname>
+       <level>85000. 95000.</level>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>MCONV_ON_SPEC_PRES_ABOVE_GRND</shortname>
+       <pname>MCONV</pname>
+       <level>3000.</level>
+       <level2>0.</level2>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>MCONV_ON_ENTIRE_ATMOS</shortname>
+       <pname>MCONV</pname>
+       <scale>5.0</scale>
+       </param>
+
+       <param>
+       <shortname>GSD_RH_WRT_PRECIP_WATER_ON_ENTIRE_ATMOS</shortname>
+       <pname>RHPW</pname>
+       <table_info>NCEP</table_info>
+       <scale>-0.1</scale>
+       </param>
+
+       <param>
        <shortname>MSLET_ON_MEAN_SEA_LVL</shortname>
        <pname>MSLET</pname>
        <table_info>NCEP</table_info>
         <scale>6.0</scale>
-       </param>
-
-       <param>
-       <shortname>MAPS_PRMSL_ON_MEAN_SEA_LVL</shortname>
-       <pname>PRMSL</pname>
-       <scale>6.0</scale>
        </param>
 
        <param>
@@ -398,6 +412,16 @@
        <param>
        <shortname>SOILW_ON_DEPTH_BEL_LAND_SFC</shortname>
        <pname>SOILW</pname>
+       <scale_fact_fixed_sfc1>2</scale_fact_fixed_sfc1>
+       <level>0. 1. 4. 10. 30. 60. 100. 160. 300.</level>
+       <scale_fact_fixed_sfc2>2</scale_fact_fixed_sfc2>
+       <level2>0. 1. 4. 10. 30. 60. 100. 160. 300.</level2>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>SOILL_ON_DEPTH_BEL_LAND_SFC</shortname>
+       <pname>SOILL</pname>
        <scale_fact_fixed_sfc1>2</scale_fact_fixed_sfc1>
        <level>0. 1. 4. 10. 30. 60. 100. 160. 300.</level>
        <scale_fact_fixed_sfc2>2</scale_fact_fixed_sfc2>
@@ -536,7 +560,7 @@
 
        <param>
        <shortname>GSD_ACM_SNOD_ON_SURFACE</shortname>
-       <scale>5.0</scale>
+       <scale>9.0</scale>
        </param>
 
        <param>
@@ -554,13 +578,7 @@
        </param>
 
        <param>
-       <shortname>MSTAV_ON_DEPTH_BEL_LAND_SFC</shortname>
-       <pname>MSTAV</pname>
-       <table_info>NCEP</table_info>
-       <scale_fact_fixed_sfc1>2</scale_fact_fixed_sfc1>
-       <level>0.</level>
-       <scale_fact_fixed_sfc2>2</scale_fact_fixed_sfc2>
-       <level2>100.</level2>
+       <shortname>RUC_MSTAV_ON_DEPTH_BEL_LAND_SFC</shortname>
        <scale>3.0</scale>
        </param>
 
@@ -574,7 +592,6 @@
        <param>
        <shortname>LFTX_ON_ISOBARIC_SFC_500-1000hpa</shortname>
        <pname>LFTX</pname>
-       <table_info>NCEP</table_info>
        <level>50000.</level>
        <level2>100000.</level2>
        <scale>3.0</scale>
@@ -583,7 +600,6 @@
        <param>
        <shortname>4LFTX_ON_SPEC_PRES_ABOVE_GRND</shortname>
        <pname>4LFTX</pname>
-       <table_info>NCEP</table_info>
        <level>18000.</level>
        <level2>0.</level2>
        <scale>3.0</scale>
@@ -626,6 +642,13 @@
         <level2>0.</level2>
        <scale>4.0</scale>
          </param>
+
+       <param>
+       <shortname>CAPE_ON_0_3KM_ABOVE_GRND</shortname>
+       <level>0.</level>
+       <level2>3000.</level2>
+       <scale>4.0</scale>
+       </param>
 
        <param>
        <shortname>CIN_ON_SURFACE</shortname>
@@ -671,9 +694,23 @@
        </param>
 
        <param>
+       <shortname>EFF_HLCY_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
+       <pname>EFHL</pname>
+       <fixed_sfc1_type>surface</fixed_sfc1_type>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>CRITICAL_ANGLE</shortname>
+       <pname>CANGLE</pname>
+       <level>0.</level>
+       <level2>500.</level2>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>USTM_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
        <pname>USTM</pname>
-       <table_info>NCEP</table_info>
        <level>6000.</level>
        <scale>4.0</scale>
        </param>
@@ -681,7 +718,6 @@
        <param>
        <shortname>VSTM_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
        <pname>VSTM</pname>
-       <table_info>NCEP</table_info>
        <level>6000.</level>
        <scale>4.0</scale>
        </param>
@@ -741,12 +777,6 @@
        </param>
 
        <param>
-       <shortname>ACM_WEASD_ON_SURFACE</shortname>
-       <pname>WEASD</pname>
-       <scale>4.0</scale>
-       </param>
-
-       <param>
        <shortname>ACM_SNOM_ON_SURFACE</shortname>
        <pname>SNOM</pname>
        <scale>4.0</scale>
@@ -773,43 +803,37 @@
        </param>
 
        <param>
-       <shortname>INST_CRAIN_ON_SURFACE</shortname>
+       <shortname>GSD_INST_CRAIN_ON_SURFACE</shortname>
        <pname>CRAIN</pname>
-       <table_info>NCEP</table_info>
        <scale>1.0</scale>
-        </param>
+       </param>
 
        <param>
-       <shortname>CSNOW_ON_SURFACE</shortname>
+       <shortname>GSD_CSNOW_ON_SURFACE</shortname>
        <pname>CSNOW</pname>
-       <table_info>NCEP</table_info>
        <scale>1.0</scale>
-        </param>
+       </param>
 
        <param>
-       <shortname>CICEP_ON_SURFACE</shortname>
+       <shortname>GSD_CICEP_ON_SURFACE</shortname>
        <pname>CICEP</pname>
-       <table_info>NCEP</table_info>
        <scale>1.0</scale>
-        </param>
+       </param>
 
        <param>
-       <shortname>CFRZR_ON_SURFACE</shortname>
-       <pname>CFRZR</pname>
-       <table_info>NCEP</table_info>
+       <shortname>GSD_CFRZR_ON_SURFACE</shortname>
        <scale>1.0</scale>
-        </param>
+       </param>
 
        <param>
        <shortname>INST_PRATE_ON_SURFACE</shortname>
        <pname>PRATE</pname>
-       <scale>3.0</scale>
+       <scale>6.0</scale>
        </param>
 
        <param>
        <shortname>CPOFP_ON_SURFACE</shortname>
        <pname>CPOFP</pname>
-       <table_info>NCEP</table_info>
        <scale>4.0</scale>
        </param>
 
@@ -860,6 +884,12 @@
        </param>
 
        <param>
+       <shortname>TCDC_ON_BOUND_LYR</shortname>
+       <pname>TCDC</pname>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>INST_TCDC_ON_ENTIRE_ATMOS</shortname>
        <pname>TCDC</pname>
        <scale>3.0</scale>
@@ -906,7 +936,6 @@
        <param>
        <shortname>INST_ULWRF_ON_SURFACE</shortname>
        <pname>ULWRF</pname>
-       <table_info>NCEP</table_info>
        <scale>4.0</scale>
        </param>
 
@@ -934,7 +963,6 @@
        <param>
        <shortname>AVE_ULWRF_ON_SURFACE</shortname>
        <pname>ULWRF</pname>
-       <table_info>NCEP</table_info>
        <scale>3.0</scale>
        </param>
 
@@ -948,14 +976,12 @@
        <param>
        <shortname>AVE_ULWRF_ON_TOP_OF_ATMOS</shortname>
        <pname>ULWRF</pname>
-       <table_info>NCEP</table_info>
        <scale>3.0</scale>
        </param>
 
        <param>
        <shortname>INST_ULWRF_ON_TOP_OF_ATMOS</shortname>
        <pname>ULWRF</pname>
-       <table_info>NCEP</table_info>
        <scale>4.0</scale>
        </param>
 
@@ -1151,6 +1177,18 @@
        </param>
 
        <param>
+       <shortname>VUCSH_ON_SPEC_HGT_LVL_ABOVE_GRND_0-1km</shortname>
+       <pname>VUCSH</pname>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>VVCSH_ON_SPEC_HGT_LVL_ABOVE_GRND_0-1km</shortname>
+       <pname>VVCSH</pname>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>VUCSH_ON_SPEC_HGT_LVL_ABOVE_GRND_0-6km</shortname>
        <pname>VUCSH</pname>
        <scale>3.0</scale>
@@ -1172,7 +1210,7 @@
        <param>
        <shortname>TMP_ON_SPEC_HGT_LVL_ABOVE_GRND_FDHGT</shortname>
        <pname>TMP</pname>
-       <level>30. 50. 80. 100.</level>
+       <level>30. 50. 80. 100. 160. 320.</level>
        <scale>3.0</scale>
         </param>
 
@@ -1186,7 +1224,7 @@
        <param>
        <shortname>UGRD_ON_SPEC_HGT_LVL_ABOVE_GRND_FDHGT</shortname>
        <pname>UGRD</pname>
-       <level>30. 50. 80. 100.</level>
+       <level>30. 50. 80. 100. 160. 320.</level>
        <scale>4.0</scale>
         </param>
 
@@ -1200,7 +1238,7 @@
        <param>
        <shortname>VGRD_ON_SPEC_HGT_LVL_ABOVE_GRND_FDHGT</shortname>
        <pname>VGRD</pname>
-       <level>30. 50. 80. 100.</level>
+       <level>30. 50. 80. 100. 160. 320.</level>
        <scale>4.0</scale>
         </param>
 
@@ -1214,14 +1252,14 @@
        <param>
        <shortname>SPFH_ON_SPEC_HGT_LVL_ABOVE_GRND_FDHGT</shortname>
        <pname>SPFH</pname>
-       <level>30. 50. 80. 100.</level>
+       <level>30. 50. 80. 100. 160. 320.</level>
        <scale>5.0</scale>
         </param>
 
        <param>
        <shortname>PRES_ON_SPEC_HGT_LVL_ABOVE_GRND_FDHGT</shortname>
        <pname>PRES</pname>
-       <level>30. 50. 80. 100.</level>
+       <level>30. 50. 80. 100. 160. 320.</level>
        <scale>3.0</scale>
         </param>
 
@@ -1241,6 +1279,24 @@
        <shortname>HGT_ON_HGHST_TROP_FRZ_LVL</shortname>
        <pname>HGT</pname>
         <scale>6.0</scale>
+       </param>
+
+       <param>
+       <shortname>RH_ON_HGHST_TROP_FRZ_LVL</shortname>
+       <pname>RH</pname>
+        <scale>-0.1</scale>
+       </param>
+
+       <param>
+       <shortname>HGT_ON_HGHST_TROP_-20C_LVL</shortname>
+       <pname>HGT</pname>
+        <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>HGT_ON_EQUIL_LVL</shortname>
+       <pname>HGT</pname>
+        <scale>3.0</scale>
        </param>
 
        <param>
@@ -1392,7 +1448,6 @@
        <param>
        <shortname>REFC_ON_ENTIRE_ATMOS</shortname>
        <pname>REFC</pname>
-       <table_info>NCEP</table_info>
        <scale>4.0</scale>
        </param>
 
@@ -1413,7 +1468,6 @@
        <param>
        <shortname>REFD_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
        <pname>REFD</pname>
-       <table_info>NCEP</table_info>
        <level>4000. 1000.</level>
        <scale>4.0</scale>
        </param>
@@ -1437,8 +1491,7 @@
        <param>
        <shortname>HPBL_ON_SURFACE</shortname>
        <pname>HPBL</pname>
-       <table_info>NCEP</table_info>
-        <scale>6.0</scale>
+       <scale>6.0</scale>
        </param>
 
        <param>
@@ -1636,13 +1689,6 @@
        </param>
 
        <param>
-       <shortname>AVE_LRGHR_ON_ENTIRE_ATMOS</shortname>
-       <pname>LRGHR</pname>
-       <table_info>NCEP</table_info>
-        <scale>5.0</scale>
-       </param>
-
-       <param>
        <shortname>TMP_ON_SIGMA_LVL_HPC</shortname>
        <pname>TMP</pname>
        <scale_fact_fixed_sfc1>4</scale_fact_fixed_sfc1>
@@ -1683,8 +1729,7 @@
        <param>
        <shortname>RETOP_ON_ENTIRE_ATMOS_SINGLE_LYR</shortname>
        <pname>RETOP</pname>
-       <table_info>NCEP</table_info>
-        <scale>6.0</scale>
+       <scale>6.0</scale>
        </param>
 
        <param>
@@ -1771,7 +1816,7 @@
        <param>
        <shortname>MAX_PRATE_ON_SURFACE</shortname>
        <pname>PRATE</pname>
-       <scale>4.0</scale>
+       <scale>6.0</scale>
        </param>
 
        <param>
@@ -1781,16 +1826,15 @@
        </param>
 
        <param>
-       <shortname>LTNG_ON_SURFACE</shortname>
-       <pname>LTNG</pname>
-       <table_info>NCEP</table_info>
-       <scale>1.0</scale>
+       <shortname>VIL_ON_ENTIRE_ATMOS</shortname>
+       <pname>VIL</pname>
+       <scale>7.0</scale>
        </param>
 
        <param>
-       <shortname>VIL_ON_ENTIRE_ATMOS</shortname>
+       <shortname>GSD_VIL_ON_ENTIRE_ATMOS</shortname>
        <pname>VIL</pname>
-       <scale>4.0</scale>
+       <scale>7.0</scale>
        </param>
 
        <param>
@@ -1844,6 +1888,11 @@
        </param>
 
        <param>
+       <shortname>GSD_HAILCAST_HAIL_DIAMETER</shortname>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>MAX_REF_ON_ISOTHERMAL_-10C</shortname>
        <pname>MAXREF</pname>
        <table_info>NCEP</table_info>
@@ -1853,7 +1902,6 @@
        <param>
        <shortname>REFD_ON_ISOTHERMAL</shortname>
        <pname>REFD</pname>
-       <table_info>NCEP</table_info>
        <fixed_sfc1_type>isothermal</fixed_sfc1_type>
        <level>263.</level>
        <scale>-4.0</scale>
@@ -1933,6 +1981,16 @@
        </param>
 
        <param>
+           <shortname>COARSEPM_ON_SPEC_HGT_LVL_ABOVE_GRND_8m</shortname>
+           <scale>6.0</scale>
+       </param>
+
+       <param>
+           <shortname>COARSEPM_ON_ENTIRE_ATMOS_SINGLE_LYR</shortname>
+           <scale>5.0</scale>
+       </param>
+
+       <param>
            <shortname>AOD_ON_ENTIRE_ATMOS_SINGLE_LYR</shortname>
            <scale>5.0</scale>
        </param>
@@ -1941,6 +1999,37 @@
            <shortname>HWP_ON_SURFACE</shortname>
            <pname>FWINX</pname>
            <scale>5.0</scale>
+       </param>
+
+       <param>
+           <shortname>DENDRITIC_LAYER_DEPTH</shortname>
+           <pname>LAYTH</pname>
+           <table_info>NCEP</table_info>
+           <fixed_sfc1_type>isothermal</fixed_sfc1_type>
+           <level>261.</level>
+           <fixed_sfc2_type>isothermal</fixed_sfc2_type>
+           <level2>256.</level2>
+           <scale>4.0</scale>
+       </param>
+
+       <param>
+           <shortname>GSD_DEPR_ON_SPEC_HGT_LVL_ABOVE_GRND_2m</shortname>
+           <scale>-4.0</scale>
+       </param>
+
+       <param>
+           <shortname>GSD_POT_ON_SPEC_HGT_LVL_ABOVE_GRND_2m</shortname>
+           <scale>-4.0</scale>
+       </param>
+
+       <param>
+           <shortname>GSD_PRES_ON_0C_ISOTHERM</shortname>
+           <scale>3.0</scale>
+       </param>
+
+       <param>
+           <shortname>GSD_PRES_ON_HGHST_TROP_FRZ_LVL</shortname>
+           <scale>3.0</scale>
        </param>
 
     </paramset>
@@ -2074,15 +2163,6 @@
        </param>
 
        <param>
-       <shortname>VVEL_ON_HYBRID_LVL</shortname>
-       <pname>VVEL</pname>
-       <level>1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20. 21. 22. 23. 24. 
-25. 26. 27. 28. 29. 30. 31. 32. 33. 34. 35. 36. 37. 38. 39. 40. 41. 42. 43. 44. 45. 46. 47. 48. 
-49. 50. 51. 52. 53. 54. 55. 56. 57. 58. 59. 60. 61. 62. 63. 64. 65.</level>
-        <scale>5.0</scale>
-       </param>
-
-       <param>
        <shortname>DZDT_ON_HYBRID_LVL</shortname>
        <pname>DZDT</pname>
        <level>1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20. 21. 22. 23. 24. 
@@ -2101,16 +2181,17 @@
        </param>
 
        <param>
+       <shortname>GSD_RH_WRT_PRECIP_WATER_ON_ENTIRE_ATMOS</shortname>
+       <pname>RHPW</pname>
+       <table_info>NCEP</table_info>
+       <scale>-0.1</scale>
+       </param>
+
+       <param>
        <shortname>MSLET_ON_MEAN_SEA_LVL</shortname>
        <pname>MSLET</pname>
        <table_info>NCEP</table_info>
         <scale>6.0</scale>
-       </param>
-
-       <param>
-       <shortname>MAPS_PRMSL_ON_MEAN_SEA_LVL</shortname>
-       <pname>PRMSL</pname>
-       <scale>6.0</scale>
        </param>
 
        <param>
@@ -2196,6 +2277,24 @@
        </param>
 
        <param>
+       <shortname>VIL_ON_ENTIRE_ATMOS</shortname>
+       <pname>VIL</pname>
+       <scale>7.0</scale>
+       </param>
+
+       <param>
+       <shortname>GSD_VIL_ON_ENTIRE_ATMOS</shortname>
+       <pname>VIL</pname>
+       <scale>7.0</scale>
+       </param>
+
+       <param>
+       <shortname>RETOP_ON_ENTIRE_ATMOS_SINGLE_LYR</shortname>
+       <pname>RETOP</pname>
+       <scale>6.0</scale>
+       </param>
+
+       <param>
        <shortname>MAX_MAXUVV_ON_ISOBARIC_SFC_100-1000hpa</shortname>
        <pname>MAXUVV</pname>
        <table_info>NCEP</table_info>
@@ -2253,6 +2352,11 @@
        </param>
 
        <param>
+       <shortname>GSD_HAILCAST_HAIL_DIAMETER</shortname>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>MAX_MAXUW_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
        <pname>MAXUW</pname>
        <table_info>NCEP</table_info>
@@ -2285,7 +2389,6 @@
        <param>
        <shortname>REFD_ON_ISOTHERMAL</shortname>
        <pname>REFD</pname>
-       <table_info>NCEP</table_info>
        <fixed_sfc1_type>isothermal</fixed_sfc1_type>
        <level>263.</level>
        <scale>-4.0</scale>
@@ -2337,6 +2440,16 @@
        </param>
 
        <param>
+       <shortname>SOILL_ON_DEPTH_BEL_LAND_SFC</shortname>
+       <pname>SOILL</pname>
+       <scale_fact_fixed_sfc1>2</scale_fact_fixed_sfc1>
+       <level>0. 1. 4. 10. 30. 60. 100. 160. 300.</level>
+       <scale_fact_fixed_sfc2>2</scale_fact_fixed_sfc2>
+       <level2>0. 1. 4. 10. 30. 60. 100. 160. 300.</level2>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>SFEXC_ON_SURFACE</shortname>
        <pname>SFEXC</pname>
        <table_info>NCEP</table_info>
@@ -2350,13 +2463,7 @@
        </param>
 
        <param>
-       <shortname>MSTAV_ON_DEPTH_BEL_LAND_SFC</shortname>
-       <pname>MSTAV</pname>
-       <table_info>NCEP</table_info>
-       <scale_fact_fixed_sfc1>2</scale_fact_fixed_sfc1>
-       <level>0.</level>
-       <scale_fact_fixed_sfc2>2</scale_fact_fixed_sfc2>
-       <level2>100.</level2>
+       <shortname>RUC_MSTAV_ON_DEPTH_BEL_LAND_SFC</shortname>
        <scale>3.0</scale>
        </param>
 
@@ -2383,7 +2490,6 @@
        <param>
        <shortname>4LFTX_ON_SPEC_PRES_ABOVE_GRND</shortname>
        <pname>4LFTX</pname>
-       <table_info>NCEP</table_info>
        <level>18000.</level>
        <level2>0.</level2>
        <scale>3.0</scale>
@@ -2420,8 +2526,8 @@
        </param>
 
        <param>
-       <shortname>ACM_WEASD_ON_SURFACE</shortname>
-       <pname>WEASD</pname>
+       <shortname>ACM_SNOWFALL_ON_SURFACE</shortname>
+       <pname>TSNOWP</pname>
        <scale>4.0</scale>
        </param>
 
@@ -2446,43 +2552,38 @@
        </param>
 
        <param>
-       <shortname>INST_CRAIN_ON_SURFACE</shortname>
+       <shortname>GSD_INST_CRAIN_ON_SURFACE</shortname>
        <pname>CRAIN</pname>
-       <table_info>NCEP</table_info>
-        <scale>1.0</scale>
+       <scale>1.0</scale>
        </param>
 
        <param>
-       <shortname>CSNOW_ON_SURFACE</shortname>
+       <shortname>GSD_CSNOW_ON_SURFACE</shortname>
        <pname>CSNOW</pname>
-       <table_info>NCEP</table_info>
        <scale>1.0</scale>
-        </param>
+       </param>
 
        <param>
-       <shortname>CICEP_ON_SURFACE</shortname>
+       <shortname>GSD_CICEP_ON_SURFACE</shortname>
        <pname>CICEP</pname>
-       <table_info>NCEP</table_info>
        <scale>1.0</scale>
-        </param>
+       </param>
 
        <param>
-       <shortname>CFRZR_ON_SURFACE</shortname>
+       <shortname>GSD_CFRZR_ON_SURFACE</shortname>
        <pname>CFRZR</pname>
-       <table_info>NCEP</table_info>
        <scale>1.0</scale>
-        </param>
+       </param>
 
        <param>
        <shortname>INST_PRATE_ON_SURFACE</shortname>
        <pname>PRATE</pname>
-       <scale>3.0</scale>
+       <scale>6.0</scale>
        </param>
 
        <param>
        <shortname>CPOFP_ON_SURFACE</shortname>
        <pname>CPOFP</pname>
-       <table_info>NCEP</table_info>
        <scale>4.0</scale>
        </param>
 
@@ -2496,8 +2597,26 @@
        </param>
 
        <param>
+       <shortname>GSD_NCCD_ON_HYBRID_LVL</shortname>
+       <pname>NCONCD</pname>
+       <level>1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20. 21. 22. 23. 24. 
+25. 26. 27. 28. 29. 30. 31. 32. 33. 34. 35. 36. 37. 38. 39. 40. 41. 42. 43. 44. 45. 46. 47. 48. 
+49. 50. 51. 52. 53. 54. 55. 56. 57. 58. 59. 60. 61. 62. 63. 64. 65.</level>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>ICMR_ON_HYBRID_LVL</shortname>
        <pname>ICMR</pname>
+       <level>1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20. 21. 22. 23. 24. 
+25. 26. 27. 28. 29. 30. 31. 32. 33. 34. 35. 36. 37. 38. 39. 40. 41. 42. 43. 44. 45. 46. 47. 48. 
+49. 50. 51. 52. 53. 54. 55. 56. 57. 58. 59. 60. 61. 62. 63. 64. 65.</level>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>GSD_NCIP_ON_HYBRID_LVL</shortname>
+       <pname>NCCICE</pname>
        <level>1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20. 21. 22. 23. 24. 
 25. 26. 27. 28. 29. 30. 31. 32. 33. 34. 35. 36. 37. 38. 39. 40. 41. 42. 43. 44. 45. 46. 47. 48. 
 49. 50. 51. 52. 53. 54. 55. 56. 57. 58. 59. 60. 61. 62. 63. 64. 65.</level>
@@ -2541,19 +2660,8 @@
        </param>
 
        <param>
-       <shortname>GSD_NCWFA_ON_HYBRID_LVL</shortname>
-       <pname>PMTF</pname>
-       <table_info>NCEP</table_info>
-       <level>1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20. 21. 22. 23. 24. 
-25. 26. 27. 28. 29. 30. 31. 32. 33. 34. 35. 36. 37. 38. 39. 40. 41. 42. 43. 44. 45. 46. 47. 48. 
-49. 50. 51. 52. 53. 54. 55. 56. 57. 58. 59. 60. 61. 62. 63. 64. 65.</level>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
-       <shortname>GSD_NCIFA_ON_HYBRID_LVL</shortname>
-       <pname>PMTC</pname>
-       <table_info>NCEP</table_info>
+       <shortname>GSD_NCRAIN_ON_HYBRID_LVL</shortname>
+       <pname>SPNCR</pname> 
        <level>1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 13. 14. 15. 16. 17. 18. 19. 20. 21. 22. 23. 24. 
 25. 26. 27. 28. 29. 30. 31. 32. 33. 34. 35. 36. 37. 38. 39. 40. 41. 42. 43. 44. 45. 46. 47. 48. 
 49. 50. 51. 52. 53. 54. 55. 56. 57. 58. 59. 60. 61. 62. 63. 64. 65.</level>
@@ -2595,6 +2703,12 @@
        </param>
 
        <param>
+       <shortname>TCDC_ON_BOUND_LYR</shortname>
+       <pname>TCDC</pname>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>INST_TCDC_ON_ENTIRE_ATMOS</shortname>
        <pname>TCDC</pname>
        <scale>3.0</scale>
@@ -2623,7 +2737,6 @@
        <param>
        <shortname>INST_ULWRF_ON_SURFACE</shortname>
        <pname>ULWRF</pname>
-       <table_info>NCEP</table_info>
        <scale>4.0</scale>
        </param>
 
@@ -2651,7 +2764,6 @@
        <param>
        <shortname>AVE_ULWRF_ON_SURFACE</shortname>
        <pname>ULWRF</pname>
-       <table_info>NCEP</table_info>
        <scale>3.0</scale>
        </param>
 
@@ -2665,7 +2777,6 @@
        <param>
        <shortname>AVE_ULWRF_ON_TOP_OF_ATMOS</shortname>
        <pname>ULWRF</pname>
-       <table_info>NCEP</table_info>
        <scale>3.0</scale>
        </param>
 
@@ -2911,22 +3022,6 @@
        </param>
 
        <param>
-       <shortname>PRES_ON_HYBRID_LVL_1L</shortname>
-       <pname>PRES</pname>
-       <level>1.</level>
-       <level2>21.</level2>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
-       <shortname>PRES_ON_HYBRID_LVL_LLM</shortname>
-       <pname>PRES</pname>
-       <level>1.</level>
-       <level2>61.</level2>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
        <shortname>CNWAT_ON_SURFACE</shortname>
        <pname>CNWAT</pname>
        <table_info>NCEP</table_info>
@@ -2943,7 +3038,6 @@
        <param>
        <shortname>LFTX_ON_ISOBARIC_SFC_500-1000hpa</shortname>
        <pname>LFTX</pname>
-       <table_info>NCEP</table_info>
        <level>50000.</level>
        <level2>100000.</level2>
        <scale>3.0</scale>
@@ -2978,6 +3072,13 @@
         <level2>0.</level2>
        <scale>4.0</scale>
          </param>
+
+       <param>
+           <shortname>CAPE_ON_0_3KM_ABOVE_GRND</shortname>
+           <level>0.</level>
+           <level2>3000.</level2>
+           <scale>4.0</scale>
+       </param>
 
        <param>
        <shortname>CIN_ON_SURFACE</shortname>
@@ -3026,9 +3127,23 @@
        </param>
 
        <param>
+       <shortname>EFF_HLCY_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
+       <pname>EFHL</pname>
+       <fixed_sfc1_type>surface</fixed_sfc1_type>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>CRITICAL_ANGLE</shortname>
+       <pname>CANGLE</pname>
+       <level>0.</level>
+       <level2>500.</level2>
+       <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>USTM_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
        <pname>USTM</pname>
-       <table_info>NCEP</table_info>
        <level>6000.</level>
        <scale>4.0</scale>
        </param>
@@ -3036,7 +3151,6 @@
        <param>
        <shortname>VSTM_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
        <pname>VSTM</pname>
-       <table_info>NCEP</table_info>
        <level>6000.</level>
        <scale>4.0</scale>
        </param>
@@ -3199,6 +3313,24 @@
        </param>
 
        <param>
+       <shortname>RH_ON_HGHST_TROP_FRZ_LVL</shortname>
+       <pname>RH</pname>
+        <scale>-0.1</scale>
+       </param>
+
+       <param>
+       <shortname>HGT_ON_HGHST_TROP_-20C_LVL</shortname>
+       <pname>HGT</pname>
+        <scale>3.0</scale>
+       </param>
+
+       <param>
+       <shortname>HGT_ON_EQUIL_LVL</shortname>
+       <pname>HGT</pname>
+        <scale>3.0</scale>
+       </param>
+
+       <param>
        <shortname>PRES_ON_MAX_WIND</shortname>
        <pname>PRES</pname>
         <scale>6.0</scale>
@@ -3249,7 +3381,6 @@
        <param>
        <shortname>REFC_ON_ENTIRE_ATMOS</shortname>
        <pname>REFC</pname>
-       <table_info>NCEP</table_info>
        <scale>4.0</scale>
        </param>
 
@@ -3329,8 +3460,7 @@
        <param>
        <shortname>HPBL_ON_SURFACE</shortname>
        <pname>HPBL</pname>
-       <table_info>NCEP</table_info>
-        <scale>6.0</scale>
+       <scale>6.0</scale>
        </param>
 
        <param>
@@ -3470,42 +3600,8 @@
        </param>
 
        <param>
-       <shortname>TMP_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
-       <pname>TMP</pname>
-       <level>10.</level>
-        <scale>-4.0</scale>
-       </param>
-
-       <param>
        <shortname>AVE_SNOWC_ON_SURFACE</shortname>
        <pname>SNOWC</pname>
-       <table_info>NCEP</table_info>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_PRES_ON_SURFACE</shortname>
-       <pname>PRES</pname>
-        <scale>5.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_TMP_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
-       <pname>TMP</pname>
-       <level>10.</level>
-        <scale>-4.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_AKHS_ON_SURFACE</shortname>
-       <pname>AKHS</pname>
-       <table_info>NCEP</table_info>
-       <scale>3.0</scale>
-       </param>
-
-       <param>
-       <shortname>AVE_AKMS_ON_SURFACE</shortname>
-       <pname>AKMS</pname>
        <table_info>NCEP</table_info>
        <scale>3.0</scale>
        </param>
@@ -3624,5 +3720,116 @@
        <scale>4.0</scale>
        </param>
 
+       <param>
+       <shortname>GSD_MAX_LTG_THREAT1_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>GSD_MAX_LTG_THREAT2_ON_SPEC_HGT_LVL_ABOVE_GRND</shortname>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>GSD_MAX_LTG_THREAT3_ON_ENTIRE_ATMOS</shortname>
+       <pname>LTNG</pname>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>SDEN_ON_SURFACE</shortname>
+       <pname>SDEN</pname>
+       <scale>6.0</scale>
+       </param>
+
     </paramset>
+
+    <paramset>
+      <datset>IFIFIP</datset>
+      <grid_num>4</grid_num>
+      <sub_center>ncep_emc</sub_center>
+      <version_no>v2003</version_no>
+      <local_table_vers_no>local_tab_yes1</local_table_vers_no>
+      <sigreftime>fcst</sigreftime>
+      <prod_status>oper</prod_status>
+      <data_type>fcst</data_type>
+      <gen_proc_type>fcst</gen_proc_type>
+      <time_range_unit>hour</time_range_unit>
+      <orig_center>nws_ncep</orig_center>
+      <gen_proc>hrrr</gen_proc>
+      <packing_method>complex_packing_spatial_diff</packing_method>
+      <order_of_sptdiff>2nd_ord_sptdiff</order_of_sptdiff>
+      <field_datatype>fltng_pnt</field_datatype>
+      <comprs_type>lossless</comprs_type>
+
+      <!-- New IFI products, only available if libIFI is linked to a post with USE_IFI enabled -->
+
+      <param>
+        <shortname>ICE_PROB_IFI_FLIGHT_LEVEL</shortname>
+        <scale>4.0</scale>
+        <!-- Level units are in 0.1 feet, so final output will be in units of 0.1 meters -->
+        <scale_fact_fixed_sfc1>1</scale_fact_fixed_sfc1>
+        <level>5000. 10000. 15000. 20000. 25000. 30000. 35000. 40000. 45000. 50000. 55000. 60000. 65000. 70000. 75000. 80000. 85000. 90000. 95000. 100000. 105000. 110000. 115000. 120000. 125000. 130000. 135000. 140000. 145000. 150000. 155000. 160000. 165000. 170000. 175000. 180000. 185000. 190000. 195000. 200000. 205000. 210000. 215000. 220000. 225000. 230000. 235000. 240000. 245000. 250000. 255000. 260000. 265000. 270000. 275000. 280000. 285000. 290000. 295000. 300000.</level>
+      </param>
+
+      <param>
+        <shortname>SLD_IFI_FLIGHT_LEVEL</shortname>
+        <scale>4.0</scale>
+        <!-- Level units are in 0.1 feet, so final output will be in units of 0.1 meters -->
+        <scale_fact_fixed_sfc1>1</scale_fact_fixed_sfc1>
+        <level>5000. 10000. 15000. 20000. 25000. 30000. 35000. 40000. 45000. 50000. 55000. 60000. 65000. 70000. 75000. 80000. 85000. 90000. 95000. 100000. 105000. 110000. 115000. 120000. 125000. 130000. 135000. 140000. 145000. 150000. 155000. 160000. 165000. 170000. 175000. 180000. 185000. 190000. 195000. 200000. 205000. 210000. 215000. 220000. 225000. 230000. 235000. 240000. 245000. 250000. 255000. 260000. 265000. 270000. 275000. 280000. 285000. 290000. 295000. 300000.</level>
+      </param>
+
+      <param>
+        <shortname>WMO_ICE_SEV_CAT_IFI_FLIGHT_LEVEL</shortname>
+        <scale>4.0</scale>
+        <!-- Level units are in 0.1 feet, so final output will be in units of 0.1 meters -->
+        <scale_fact_fixed_sfc1>1</scale_fact_fixed_sfc1>
+        <level>5000. 10000. 15000. 20000. 25000. 30000. 35000. 40000. 45000. 50000. 55000. 60000. 65000. 70000. 75000. 80000. 85000. 90000. 95000. 100000. 105000. 110000. 115000. 120000. 125000. 130000. 135000. 140000. 145000. 150000. 155000. 160000. 165000. 170000. 175000. 180000. 185000. 190000. 195000. 200000. 205000. 210000. 215000. 220000. 225000. 230000. 235000. 240000. 245000. 250000. 255000. 260000. 265000. 270000. 275000. 280000. 285000. 290000. 295000. 300000.</level>
+      </param>
+    </paramset>
+
+    <paramset>
+    <datset>AVIATION</datset>
+    <grid_num>32769</grid_num>
+    <sub_center>ncep_nco</sub_center>
+    <version_no>v2003</version_no>
+    <local_table_vers_no>local_tab_yes1</local_table_vers_no>
+    <sigreftime>fcst</sigreftime>
+    <prod_status>oper</prod_status>
+    <data_type>fcst</data_type>
+    <gen_proc_type>fcst</gen_proc_type>
+    <time_range_unit>hour</time_range_unit>
+    <orig_center>nws_ncep</orig_center>
+    <gen_proc>rrfs</gen_proc>
+    <packing_method>complex_packing_spatial_diff</packing_method>
+    <order_of_sptdiff>2nd_ord_sptdiff</order_of_sptdiff>
+    <field_datatype>fltng_pnt</field_datatype>
+    <comprs_type>lossless</comprs_type>
+
+      <param>
+        <shortname>EDPARM_GTG_ON_SPEC_ALT_ABOVE_MEAN_SEA_LVL</shortname>
+        <level>30. 304. 609. 914. 1219. 1524. 1828. 2133. 2438. 2743. 3048. 3352. 3657. 3962. 4267. 4572. 4876. 5181. 5486. 5791. 6096. 6400. 6705. 7010. 7315. 7620. 7924. 8229. 8534. 8839. 9144. 9448. 9753. 10058. 10363. 10668. 10972. 11277. 11582. 11887. 12192. 12496. 12801. 13106. 13411. 13716. 14020. 14325. 14630. 14935. 15240. 0.</level>
+        <scale>3.0</scale>
+      </param>
+
+      <param>
+        <shortname>CAT_GTG_ON_SPEC_ALT_ABOVE_MEAN_SEA_LVL</shortname>
+        <level>30. 304. 609. 914. 1219. 1524. 1828. 2133. 2438. 2743. 3048. 3352. 3657. 3962. 4267. 4572. 4876. 5181. 5486. 5791. 6096. 6400. 6705. 7010. 7315. 7620. 7924. 8229. 8534. 8839. 9144. 9448. 9753. 10058. 10363. 10668. 10972. 11277. 11582. 11887. 12192. 12496. 12801. 13106. 13411. 13716. 14020. 14325. 14630. 14935. 15240.</level>
+        <scale>3.0</scale>
+      </param>
+
+      <param>
+        <shortname>MWTURB_GTG_ON_SPEC_ALT_ABOVE_MEAN_SEA_LVL</shortname>
+        <level>30. 304. 609. 914. 1219. 1524. 1828. 2133. 2438. 2743. 3048. 3352. 3657. 3962. 4267. 4572. 4876. 5181. 5486. 5791. 6096. 6400. 6705. 7010. 7315. 7620. 7924. 8229. 8534. 8839. 9144. 9448. 9753. 10058. 10363. 10668. 10972. 11277. 11582. 11887. 12192. 12496. 12801. 13106. 13411. 13716. 14020. 14325. 14630. 14935. 15240.</level>
+        <scale>3.0</scale>
+      </param>
+
+      <param>
+        <shortname>CIT_GTG_ON_SPEC_ALT_ABOVE_MEAN_SEA_LVL</shortname>
+        <level>30. 304. 609. 914. 1219. 1524. 1828. 2133. 2438. 2743. 3048. 3352. 3657. 3962. 4267. 4572. 4876. 5181. 5486. 5791. 6096. 6400. 6705. 7010. 7315. 7620. 7924. 8229. 8534. 8839. 9144. 9448. 9753. 10058. 10363. 10668. 10972. 11277. 11582. 11887. 12192. 12496. 12801. 13106. 13411. 13716. 14020. 14325. 14630. 14935. 15240.</level>
+        <scale>3.0</scale>
+      </param>
+    </paramset>
+
    </postxml>

@@ -2,13 +2,13 @@
 !> @brief initpost_nems() initializes post for run.
 !>
 !> @author Hui-Ya Chuang @date 2007-03-26
-
+!>
 !> This routine initializes constants and
 !> variables at the start of an NEMS model or post
 !> processor run.
 !>
 !> @param[in] NREC.
-!> @param[in] NFILE.
+!> @param[inout] NFILE.
 !>
 !> ### Program History Log
 !> Date | Programmer | Comments
@@ -17,6 +17,13 @@
 !> 2021-03-11 | Bo Cui        | Change local arrays to dimension (im,jsta:jend)
 !>
 !> @author Hui-Ya Chuang @date 2007-03-26
+!----------------------------------------------------------------------
+!> @brief INITPOST_NEMS This routine initializes constants and
+!> variables at the start of an NEMS model or post processor run.
+!> 
+!> @param[in] NREC integer Number of records in file.
+!> @param[inout] nfile nemsio_gfile Name of the NEMS-formatted model output file.
+!----------------------------------------------------------------------
       SUBROUTINE INITPOST_NEMS(NREC,nfile)
 
       use vrbls3d, only: t, q, uh, vh, q2, cwm, f_ice, f_rain, f_rimef, cfr, pint,&
@@ -1927,25 +1934,25 @@
       END DO
       if (me==0) then
         print*,'finish deriving geopotential in nmm'
-        write(0,*)' after ZINT lm=',lm,' js=',js,' je=',je,' im=',im
-        write(0,*)' zmid lbounds=',lbound(zmid),' ubounds=',ubound(zmid)
-        write(0,*)' zint lbounds=',lbound(zint),' ubounds=',ubound(zint)
-        write(0,*)' pmid lbounds=',lbound(pmid),' ubounds=',ubound(pmid)
-        write(0,*)' pint lbounds=',lbound(pint),' ubounds=',ubound(pint)
+        write(*,*)' after ZINT lm=',lm,' js=',js,' je=',je,' im=',im
+        write(*,*)' zmid lbounds=',lbound(zmid),' ubounds=',ubound(zmid)
+        write(*,*)' zint lbounds=',lbound(zint),' ubounds=',ubound(zint)
+        write(*,*)' pmid lbounds=',lbound(pmid),' ubounds=',ubound(pmid)
+        write(*,*)' pint lbounds=',lbound(pint),' ubounds=',ubound(pint)
       endif
       deallocate(fi)
 !
       DO L=1,LM
-!      write(0,*)' zmid l=',l
+!      write(*,*)' zmid l=',l
 !$omp parallel do private(i,j,fact)
         DO J=Jsta,Jend
-!      write(0,*)' zmid j=',j
+!      write(*,*)' zmid j=',j
           DO I=1,IM
-!      write(0,*)' zmid i=',i
+!      write(*,*)' zmid i=',i
 !         ZMID(I,J,L)=(ZINT(I,J,L+1)+ZINT(I,J,L))*0.5  ! ave of z
-!      write(0,*)' pmid=',pmid(i,j,l)
-!      write(0,*)' pint=',pint(i,j,l),pint(i,j,l+1)
-!      write(0,*)' zint=',zint(i,j,l),zint(i,j,l+1)
+!      write(*,*)' pmid=',pmid(i,j,l)
+!      write(*,*)' pint=',pint(i,j,l),pint(i,j,l+1)
+!      write(*,*)' zint=',zint(i,j,l),zint(i,j,l+1)
             FACT = (LOG(PMID(I,J,L))-LOG(PINT(I,J,L)))                      &
                  / (LOG(PINT(I,J,L+1))-LOG(PINT(I,J,L)))
             ZMID(I,J,L) = ZINT(I,J,L) + (ZINT(I,J,L+1)-ZINT(I,J,L))*FACT
@@ -2828,7 +2835,7 @@
 ! close all files
         call nemsio_close(nfile,iret=status)
 !
-       if(me==0)write(0,*)'end of INIT_NEMS'
+       if(me==0)write(*,*)'end of INIT_NEMS'
 
       RETURN
       END

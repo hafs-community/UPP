@@ -1,20 +1,23 @@
 !> @file
-!
-!> SUBPROGRAM:    MPI_FIRST   SET UP MESSGAE PASSING INFO
+!>
+!> SUBPROGRAM:    MPI_FIRST   SET UP MESSAGE PASSING INFO
 !!   PRGRMMR: TUCCILLO        ORG: IBM
 !!
 !! ABSTRACT:
 !!     SETS UP MESSAGE PASSING INFO
 !!
-!! PROGRAM HISTORY LOG:
-!!   14-12-01   WM LEWIS: ADDED ADDNL VARIABLES FOR SAT OUTPUT
-!!   00-01-06  TUCCILLO - ORIGINAL
-!!   01-10-25  H CHUANG - MODIFIED TO PROCESS HYBRID MODEL OUTPUT
-!!   02-06-19  MIKE BALDWIN - WRF VERSION
-!!   11-12-16  SARAH LU - MODIFIED TO INITIALIZE AEROSOL FIELDS
-!!   12-01-07  SARAH LU - MODIFIED TO INITIALIZE AIR DENSITY/LAYER THICKNESS
-!!   21-07-07  JESSE MENG - 2D DECOMPOSITION
-!!   22-09-22  Li(Kate) Zhang - Add new aerosols fields for UFS-Aerosols
+!> ### Program History Log
+!> Date | Programmer | Comments
+!> -----|------------|---------
+!> 2014-12-01 |  WM LEWIS | ADDED ADDNL VARIABLES FOR SAT OUTPUT
+!> 2000-01-06 | TUCCILLO | ORIGINAL
+!> 2001-10-25 | H CHUANG | MODIFIED TO PROCESS HYBRID MODEL OUTPUT
+!> 2002-06-19 | MIKE BALDWIN | WRF VERSION
+!> 2011-12-16 | SARAH LU | MODIFIED TO INITIALIZE AEROSOL FIELDS
+!> 2012-01-07 | SARAH LU | MODIFIED TO INITIALIZE AIR DENSITY/LAYER THICKNESS
+!> 2021-07-07 | JESSE MENG | 2D DECOMPOSITION
+!> 2022-09-22 | Li(Kate) Zhang | Add new aerosols fields for UFS-Aerosols
+!> 2023-03-22 | WM LEWIS | ADDED EFFRI, EFFRS, EFFRL
 !!
 !! USAGE:    CALL MPI_FIRST
 !!   INPUT ARGUMENT LIST:
@@ -36,6 +39,9 @@
 !!     MACHINE : IBM RS/6000 SP
 !!
 !@PROCESS NOEXTCHK
+!-----------------------------------------------------------------------
+!> @brief MPI_FIRST() Sets up message passing info (MPI).
+!-----------------------------------------------------------------------
       SUBROUTINE MPI_FIRST()
 
 !
@@ -49,7 +55,8 @@
               mgdrag, cnvctvmmixing, ncnvctcfrac, cnvctumflx, cnvctdmflx, cnvctdetmflx,&
               cnvctzgdrag, cnvctmgdrag, icing_gfip, asy, ssa, duem, dusd, dudp,        &
               duwt, suem, susd, sudp, suwt, ocem, ocsd, ocdp, ocwt, bcem, bcsd,        &
-              bcdp, bcwt, ssem, sssd, ssdp, sswt, ext, dpres, rhomid
+              bcdp, bcwt, ssem, sssd, ssdp, sswt, ext, dpres, rhomid, effri, effrl,    &
+              effrs
       use vrbls2d, only: wspd10max, w_up_max, w_dn_max, w_mean, refd_max, up_heli_max, &
               prate_max, fprate_max, swupt,                                            &
               up_heli_max16, grpl_max, up_heli, up_heli16, ltg1_max, ltg2_max,         &
@@ -112,7 +119,7 @@
       isumm2=0
 
       if ( me == 0 ) then
-        write(0,*) ' NUM_PROCS,NUMX,NUMY = ',num_procs,numx,num_procs/numx
+        write(*,*) ' NUM_PROCS,NUMX,NUMY = ',num_procs,numx,num_procs/numx
       end if
 
       if ( num_procs > 1024 ) then
@@ -131,14 +138,17 @@
  
 !     global loop ranges
 !
-!  para_range2 supports a 2D decomposition.  The rest of the post
-!  supports 1D still and the call here is the special case where each
-!  processor gets all of the longitudes in the latitude 1D subdomain
-!  jsta:jend.  The X decomposition will be specified by the third
-!  argument (currently 1) and the Y decoposition will be specified by
-!  the fourth argument (currently all of the ranks)   When X is
-!  subdivided the third and fourth arguments will have to be integral
-!  factors of num_procs 
+!  para_range2 supports a 2D decomposition.  
+!  The X decomposition is  specified by the third
+!  argument  and the Y decoposition is  specified by
+!  the fourth argument.  The product of the third and fourth arguments
+!  must be num_procs and the third and fourth arguments must be integral
+!  factors of num_procs.
+!
+!  for the special case of 1D decomposition, numx is set to 1 and the
+!  fourth argument becomes the number of MPI ranks for the job. numx=1
+!   makes the code fully compatible with the old 1D decomposition. 
+
 
       call para_range2(im,jm,numx,num_procs/numx,me,ista,iend,jsta,jend)
 
@@ -264,8 +274,8 @@
       iup=MPI_PROC_NULL
       idn=MPI_PROC_NULL
 
-      if(mod(me,numx) .eq. 0) print *,' LEFT POINT',me
-      if(mod(me+1,numx) .eq. 0) print *,' RIGHT  POINT',me
+      !if(mod(me,numx) .eq. 0) print *,' LEFT POINT',me
+      !if(mod(me+1,numx) .eq. 0) print *,' RIGHT  POINT',me
       if(mod(me,numx) .eq. 0) ileft=MPI_PROC_NULL
       if(mod(me,numx) .eq. 0) ileftb=me+numx-1
       if(mod(me+1,numx) .eq. 0 .or. me .eq. num_procs-1)  iright=MPI_PROC_NULL
@@ -273,7 +283,7 @@
       if(me .ge. numx) idn=me-numx
       if(me+1  .le. num_procs-numx) iup=me+numx
 
-      print 102,me,ileft,iright,iup,idn,num_procs,'GWVX BOUNDS'
+      !print 102,me,ileft,iright,iup,idn,num_procs,'GWVX BOUNDS'
 
 !     allocate arrays
 
@@ -333,7 +343,7 @@
       end do ! end check code
 
 !  test pole gather
-      print 105,' GWVX GATHER DISP ',icnt2(me),idsp2(me),me
+      !print 105,' GWVX GATHER DISP ',icnt2(me),idsp2(me),me
  105  format(a30,3i12)
 
       call mpi_gatherv(ipole(ista),icnt2(me),MPI_INTEGER,  ipoles,icnt2,idsp2,MPI_INTEGER,0,MPI_COMM_WORLD, ierr ) 
@@ -345,10 +355,10 @@
             ii=rpoles(i,j)/4000
             jj=rpoles(i,j) -ii*4000
             if(ii .ne. i .or.  jj .ne. 1 .and. jj .ne. jm ) then
-               write(0,169)' IPOLES BAD POINT',rpoles(i,j),ii,i,jj,' jm= ',jm
+               write(*,169)' IPOLES BAD POINT',rpoles(i,j),ii,i,jj,' jm= ',jm
             else
               continue
-!             write(0,169)'  IPOLES GOOD POINT',rpoles(i,j),ii,i,jj,' jm= ',jm
+!             write(*,169)'  IPOLES GOOD POINT',rpoles(i,j),ii,i,jj,' jm= ',jm
             endif
           end do
         end do
@@ -357,10 +367,10 @@
  107    format(a20,10i10)
  169    format(a25,f20.1,3i10,a10,4i10)
 !
-      print *, ' me, jsta_2l, jend_2u = ',me,jsta_2l, jend_2u,  &
-               'jvend_2u=',jvend_2u,'im=',im,'jm=',jm,'lm=',lm, &
-               'lp1=',lp1
-      write(0,'(A,5I10)') 'MPI_FIRST me,jsta,jend,ista,iend,=',me,jsta,jend,ista,iend
+!      print *, ' me, jsta_2l, jend_2u = ',me,jsta_2l, jend_2u,  &
+!               'jvend_2u=',jvend_2u,'im=',im,'jm=',jm,'lm=',lm, &
+!               'lp1=',lp1
+!      write(*,'(A,5I10)') 'MPI_FIRST me,jsta,jend,ista,iend,=',me,jsta,jend,ista,iend
 
       end
 
@@ -369,6 +379,12 @@
 !             end
 
 
+!----------------------------------------------------------------------
+!> @brief fullpole() 
+!> 
+!> @param[inout] a real
+!> @param[inout] rpoles real
+!----------------------------------------------------------------------
 
       subroutine fullpole(a,rpoles)
 

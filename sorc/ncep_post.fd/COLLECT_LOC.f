@@ -13,6 +13,12 @@
 !> 2021-06-01 | George Vandenberghe | 2D Decomposition             
 !>
 !> @author Jim Tuccillo IBM @date 2000-01-06
+!--------------------------------------------------------------------------------
+!> @brief COLLECT_LOC
+!>
+!> @param[in] A real array Array being gathered.
+!> @param[out] B real array Gathered array - only valid on task 0.
+!--------------------------------------------------------------------------------
       SUBROUTINE COLLECT_LOC ( A, B ) 
 
 
@@ -42,7 +48,7 @@
         do jj=jsxa(me),jexa(me)
           do ii=isxa(me),iexa(me)
             if(isum .gt. im*jm .or. ii .gt. im .or. ii .lt. 1 .or. jj .gt. jm .or. jj.lt. 1) &
-              write(0,901)' BOUNDS2 FAIL in reshape ',isum,ii,jj,im*jm,im,im*jm
+              write(*,901)' BOUNDS2 FAIL in reshape ',isum,ii,jj,im*jm,im,im*jm
               rbufs(isum)=a(ii,jj)
               isum=isum+1
           end do
@@ -60,7 +66,7 @@
             do jj=jsxa(n),jexa(n)
               do ii=isxa(n),iexa(n)
                 if(isum .gt. im*jm .or. ii .gt. im .or. ii .lt. 1 .or. jj .gt. jm .or. jj .lt. 1) &
-                 write(0,901)' BOUNDS FAIL in reshape ',isum,ii,jj,im*jm,im,im*jm
+                 write(*,901)' BOUNDS FAIL in reshape ',isum,ii,jj,im*jm,im,im*jm
                  b(ii,jj)=buff(isum)
                  isum=isum+1
               end do
@@ -77,6 +83,11 @@
 
       end               
 !
+!-----------------------------------------------------------------------
+!> @brief COLLECT_ALL()
+!>
+!> @param[in] A real array Array being gathered.
+!> @param[out] B real array Gathered array - only valid on task 0.
 !-----------------------------------------------------------------------
 !
       SUBROUTINE COLLECT_ALL ( A, B )
@@ -106,7 +117,7 @@
         do jj=jsxa(me),jexa(me)
           do ii=isxa(me),iexa(me)
             if(isum .gt. im*jm .or. ii .gt. im .or. ii .lt. 1 .or. jj .gt. jm .or. jj.lt. 1) &
-               write(0,901)' BOUNDS2 FAIL in reshape',isum,ii,jj,im*jm,im,im*jm
+               write(*,901)' BOUNDS2 FAIL in reshape',isum,ii,jj,im*jm,im,im*jm
             rbufs(isum)=a(ii,jj)
             isum=isum+1
           end do
@@ -122,7 +133,7 @@
           do jj=jsxa(n),jexa(n)
             do ii=isxa(n),iexa(n)
               if(isum .gt. im*jm .or. ii .gt. im .or. ii .lt. 1 .or. jj .gt. jm .or. jj .lt. 1) &
-              write(0,901)' BOUNDS FAIL in reshape',isum,ii,jj,im*jm,im,im*jm
+              write(*,901)' BOUNDS FAIL in reshape',isum,ii,jj,im*jm,im,im*jm
               b(ii,jj)=buff(isum)
               isum=isum+1
             end do

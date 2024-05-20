@@ -1,179 +1,75 @@
-SHELL=/bin/sh
-
 # This makefile is to create Post flat file from available and control XML file
 # Currently support GFS, GFS GOES, GFS ANL, NMM, and NGAC
 # See documentation EMC POST Performance Improvement Upgrade for information
 # 2015/04       Lin Gan : First version
 # 2015/10       Lin Gan : Add HRRR and RAP
 # 2016/03       Lin Gan : Add GEFS and new control section tag using GEFS ctrl and GFS avail file
+# 2023/09       Sam Trahan : Rewritten with simpler syntax and better readability
 
-# Target flat file
-GFSFLATFILENAME		= postxconfig-NT-GFS.txt
-GFSGOESFLATFILENAME	= postxconfig-NT-GFS-GOES.txt
-GFSANLFLATFILENAME	= postxconfig-NT-GFS-ANL.txt
-GFSF00FLATFILENAME	= postxconfig-NT-GFS-F00.txt
-GFSFLUXFLATFILENAME     = postxconfig-NT-GFS-FLUX.txt
-GFSFLUXF00FLATFILENAME  = postxconfig-NT-GFS-FLUX-F00.txt
-NMMFLATFILENAME		= postxconfig-NT-NMM.txt
-NGACFLATFILENAME	= postxconfig-NT-NGAC.txt
-GEFSFLATFILENAME        = postxconfig-NT-GEFS.txt
-GEFSANLFLATFILENAME     = postxconfig-NT-GEFS-ANL.txt
-GEFSF00FLATFILENAME     = postxconfig-NT-GEFS-F00.txt
-FV3LAMFLATFILENAME      = postxconfig-NT-fv3lam.txt
-HAFSSATFLATFILENAME     = postxconfig-NT-hafs_sat.txt
-HAFSNOSATFLATFILENAME   = postxconfig-NT-hafs_nosat.txt
-GFSTWOFLATFILENAME      = postxconfig-NT-GFS-TWO.txt
-GFSTWOF00FLATFILENAME   = postxconfig-NT-GFS-F00-TWO.txt
-HRRRFLATFILENAME        = postxconfig-NT-hrrr.txt
-RAPFLATFILENAME         = postxconfig-NT-rap.txt
-RRFSFLATFILENAME        = postxconfig-NT-fv3lam_rrfs.txt
-RTMA3DFLATFILENAME      = postxconfig-NT-3drtma.txt
-UFSAEROSOLFLATFILENAME  = postxconfig-NT-UFS-aerosol.txt
-UFSAERO00FLATFILENAME   = postxconfig-NT-UFS-aerosol-F00.txt
-AQMFLATFILENAME         = postxconfig-NT-AQM.txt
+SHELL=/bin/sh
+PERL=/usr/bin/perl
+PERLXML=PostXMLPreprocessor.pl
+RM=rm -f
 
-# Source Post XML file
-GFSAVAILXMLFILENAME	= post_avblflds.xml
-GFSCTRLFILENAME		= postcntrl_gfs.xml
-GFSGOESCTRLFILENAME	= postcntrl_gfs_goes.xml
-GFSANLCTRLFILENAME	= postcntrl_gfs_anl.xml
-GFSCTRLF00FILENAME	= postcntrl_gfs_f00.xml
-GFSCTRLFLUXFILENAME     = postcntrl_gfs_flux.xml
-GFSCTRLFLUXF00FILENAME  = postcntrl_gfs_flux_f00.xml 
-NMMAVAILXMLFILENAME	= nam_post_avblflds.xml
-NMMCTRLFILENAME		= nam_cntrl_cmaq.xml
-NGACAVAILXMLFILENAME	= ngac_post_avblflds.xml
-NGACCTRLFILENAME	= ngac_postcntrl.xml
-GEFSAVAILXMLFILENAME    = post_avblflds.xml 
-GEFSCTRLFILENAME        = postcntrl_gefs.xml
-GEFSANLCTRLFILENAME     = postcntrl_gefs_anl.xml
-GEFSCTRLF00FILENAME     = postcntrl_gefs_f00.xml
-FV3LAMAVAILXMLFILENAME  = post_avblflds.xml
-FV3LAMCTRLFILENAME      = fv3lam.xml
-HAFSSATCTRLFILENAME     = postcntrl_hafs_sat.xml
-HAFSNOSATCTRLFILENAME   = postcntrl_hafs_nosat.xml
-GFSTWOCTRLFILENAME      = postcntrl_gfs_two.xml
-GFSTWOF00CTRLFILENAME   = postcntrl_gfs_f00_two.xml
-HRRRAVAILXMLFILENAME    = post_avblflds_raphrrr.xml
-RAPAVAILXMLFILENAME     = post_avblflds_raphrrr.xml
-HRRRCTRLFILENAME        = hrrr_postcntrl.xml
-RAPCTRLFILENAME         = rap_postcntrl.xml
-RRFSAVAILXMLFILENAME    = post_avblflds.xml
-RRFSCTRLFILENAME        = fv3lam_rrfs.xml
-RTMA3DCTRLFILENAME	= 3drtma_postcntrl.xml
-RTMA3DAVAILXMLFILENAME  = post_avblflds.xml 
-UFSAEROSOLCTRFILENAME   = postcntrl_ufs_aerosol.xml 
-UFSAEROSOL00CTRFILENAME = postcntrl_ufs_aerosol_f00.xml 
-AQMCTRLFILENAME         = aqm.xml
-AVAILXMLFILENAME        = post_avblflds.xml
+# Rule Syntax:
+#  target.txt: control.xml avblflds.xml
+# Will call:
+#  perl PostXMLPreprocessor.pl control.xml avblflds.xml target.txt
+# Make sure all of the .txt files are in the ALL_TXT variable.
 
-# Post flat file generator
-PERLXML			= PostXMLPreprocessor.pl
+ALL_TXT= \
+  postxconfig-NT-GFS.txt \
+  postxconfig-NT-GFS-GOES.txt \
+  postxconfig-NT-GFS-ANL.txt \
+  postxconfig-NT-GFS-F00.txt \
+  postxconfig-NT-GFS-FLUX.txt \
+  postxconfig-NT-GFS-FLUX-F00.txt \
+  postxconfig-NT-NMM.txt \
+  postxconfig-NT-NGAC.txt \
+  postxconfig-NT-GEFS.txt \
+  postxconfig-NT-GEFS-F00.txt \
+  postxconfig-NT-hafs_sat.txt \
+  postxconfig-NT-hafs_nosat.txt \
+  postxconfig-NT-hafs.txt \
+  postxconfig-NT-GFS-TWO.txt \
+  postxconfig-NT-GFS-F00-TWO.txt \
+  postxconfig-NT-hrrr.txt \
+  postxconfig-NT-rap.txt \
+  postxconfig-NT-fv3lam_rrfs.txt \
+  postxconfig-NT-UFS-aerosol.txt \
+  postxconfig-NT-UFS-aerosol-F00.txt \
+  postxconfig-NT-GEFS-aerosol.txt \
+  postxconfig-NT-GEFS-F00-aerosol.txt \
+  postxconfig-NT-AQM.txt
 
-# CMD with param
-PERLXMLGFS		= /usr/bin/perl $(PERLXML) $(GFSCTRLFILENAME) $(GFSAVAILXMLFILENAME) $(GFSFLATFILENAME)
-PERLXMLGFSGOES		= /usr/bin/perl $(PERLXML) $(GFSGOESCTRLFILENAME) $(GFSAVAILXMLFILENAME) $(GFSGOESFLATFILENAME)
-PERLXMLGFSANL		= /usr/bin/perl $(PERLXML) $(GFSANLCTRLFILENAME) $(GFSAVAILXMLFILENAME) $(GFSANLFLATFILENAME)
-PERLXMLGFSF00		= /usr/bin/perl $(PERLXML) $(GFSCTRLF00FILENAME) $(GFSAVAILXMLFILENAME) $(GFSF00FLATFILENAME)
-PERLXMLGFSFLUX          = /usr/bin/perl $(PERLXML) $(GFSCTRLFLUXFILENAME) $(GFSAVAILXMLFILENAME) $(GFSFLUXFLATFILENAME) 
-PERLXMLGFSFLUXF00       = /usr/bin/perl $(PERLXML) $(GFSCTRLFLUXF00FILENAME) $(GFSAVAILXMLFILENAME) $(GFSFLUXF00FLATFILENAME)
-PERLXMLNMM		= /usr/bin/perl $(PERLXML) $(NMMCTRLFILENAME) $(NMMAVAILXMLFILENAME) $(NMMFLATFILENAME)
-PERLXMLNGAC		= /usr/bin/perl $(PERLXML) $(NGACCTRLFILENAME) $(NGACAVAILXMLFILENAME) $(NGACFLATFILENAME)
-#PERLXMLHRRR		= /usr/bin/perl $(PERLXML) $(HRRRCTRLFILENAME) $(HRRRAVAILXMLFILENAME) $(HRRRFLATFILENAME)
-PERLXMLGEFS		= /usr/bin/perl $(PERLXML) $(GEFSCTRLFILENAME) $(GFSAVAILXMLFILENAME) $(GEFSFLATFILENAME)
-PERLXMLGEFSANL		= /usr/bin/perl $(PERLXML) $(GEFSANLCTRLFILENAME) $(GFSAVAILXMLFILENAME) $(GEFSANLFLATFILENAME)
-PERLXMLGEFSF00		= /usr/bin/perl $(PERLXML) $(GEFSCTRLF00FILENAME) $(GFSAVAILXMLFILENAME) $(GEFSF00FLATFILENAME)
-PERLXMLFV3LAM		= /usr/bin/perl $(PERLXML) $(FV3LAMCTRLFILENAME) $(FV3LAMAVAILXMLFILENAME) $(FV3LAMFLATFILENAME)
-PERLXMLHAFSSAT          = /usr/bin/perl $(PERLXML) $(HAFSSATCTRLFILENAME) $(FV3LAMAVAILXMLFILENAME) $(HAFSSATFLATFILENAME)
-PERLXMLHAFSNOSAT        = /usr/bin/perl $(PERLXML) $(HAFSNOSATCTRLFILENAME) $(FV3LAMAVAILXMLFILENAME) $(HAFSNOSATFLATFILENAME)
-PERLXMLGFSTWO           = /usr/bin/perl $(PERLXML) $(GFSTWOCTRLFILENAME) $(GFSAVAILXMLFILENAME) $(GFSTWOFLATFILENAME)
-PERLXMLGFSTWOF00        = /usr/bin/perl $(PERLXML) $(GFSTWOF00CTRLFILENAME) $(GFSAVAILXMLFILENAME) $(GFSTWOF00FLATFILENAME)
-PERLXMLHRRR             = /usr/bin/perl $(PERLXML) $(HRRRCTRLFILENAME) $(HRRRAVAILXMLFILENAME) $(HRRRFLATFILENAME)
-PERLXMLRAP              = /usr/bin/perl $(PERLXML) $(RAPCTRLFILENAME) $(RAPAVAILXMLFILENAME) $(RAPFLATFILENAME)
-PERLXMLRRFS             = /usr/bin/perl $(PERLXML) $(RRFSCTRLFILENAME) $(RRFSAVAILXMLFILENAME) $(RRFSFLATFILENAME)
-PERLXML3DRTMA		= /usr/bin/perl $(PERLXML) $(RTMA3DCTRLFILENAME) $(RTMA3DAVAILXMLFILENAME) $(RTMA3DFLATFILENAME)
-PERLXMLUFSAEROSOL	= /usr/bin/perl $(PERLXML) $(UFSAEROSOLCTRFILENAME) $(RTMA3DAVAILXMLFILENAME) $(UFSAEROSOLFLATFILENAME)
-PERLXMLUFSAEROSOL00	= /usr/bin/perl $(PERLXML) $(UFSAEROSOL00CTRFILENAME) $(RTMA3DAVAILXMLFILENAME) $(UFSAERO00FLATFILENAME)
-PERLXMLAQM              = /usr/bin/perl $(PERLXML) $(AQMCTRLFILENAME) $(AVAILXMLFILENAME) $(AQMFLATFILENAME)
-
-# File to look for change
-GFSXMLS = $(GFSAVAILXMLFILENAME) $(GFSCTRLFILENAME)
-GFSGOESXMLS = $(GFSAVAILXMLFILENAME) $(GFSGOESCTRLFILENAME)
-GFSANLXMLS = $(GFSAVAILXMLFILENAME) $(GFSANLCTRLFILENAME)
-GFSF00XMLS = $(GFSAVAILXMLFILENAME) $(GFSCTRLF00FILENAME)
-GFSFLUXXMLS = $(GFSAVAILXMLFILENAME) $(GFSCTRLFLUXFILENAME)
-GFSFLUXF00XMLS = $(GFSAVAILXMLFILENAME) $(GFSCTRLFLUXF00FILENAME)
-NMMXMLS = $(NMMAVAILXMLFILENAME) $(NMMCTRLFILENAME)
-NGACXMLS = $(NGACAVAILXMLFILENAME) $(NGACCTRLFILENAME)
-#HRRRXMLS = $(HRRRAVAILXMLFILENAME) $(HRRRCTRLFILENAME)
-GEFSXMLS = $(GFSAVAILXMLFILENAME) $(GEFSCTRLFILENAME)
-GEFSANLXMLS = $(GFSAVAILXMLFILENAME) $(GEFSANLCTRLFILENAME)
-GEFSF00XMLS = $(GFSAVAILXMLFILENAME) $(GEFSCTRLF00FILENAME)
-FV3LAMXMLS  = $(FV3LAMAVAILXMLFILENAME) $(FV3LAMCTRLFILENAME)
-HAFSSATXMLS  = $(FV3LAMAVAILXMLFILENAME) $(HAFSSATCTRLFILENAME)
-HAFSNOSATXMLS = $(FV3LAMAVAILXMLFILENAME) $(HAFSNOSATCTRLFILENAME)
-GFSTWOXMLS  = $(GFSAVAILXMLFILENAME) $(GFSTWOCTRLFILENAME)
-GFSTWOF00XMLS  = $(GFSAVAILXMLFILENAME) $(GFSTWOF00CTRLFILENAME)
-HRRRXMLS = $(HRRRAVAILXMLFILENAME) $(HRRRCTRLFILENAME)
-RAPXMLS = $(RAPAVAILXMLFILENAME) $(RAPCTRLFILENAME)
-RRFSXMLS = $(RRFSAVAILXMLFILENAME) $(RRFSCTRLFILENAME)
-RTMA3DXMLS = $(RTMA3DAVAILXMLFILENAME) $(RTMA3DCTRLFILENAME)
-UFSAEROSOLXMLS = $(RTMA3DAVAILXMLFILENAME) $(UFSAEROSOLCTRLFILENAME)
-UFSAEROSOL00XMLS = $(RTMA3DAVAILXMLFILENAME) $(UFSAEROSOL00CTRLFILENAME)
-AQMXMLS    = $(AVAILXMLFILENAME) $(AQMCTRLFILENAME)
-
-# If action is triggered; run the following
-all: $(GFSFLATFILENAME) $(GFSGOESFLATFILENAME) $(GFSANLFLATFILENAME) $(GFSF00FLATFILENAME) $(GFSFLUXFLATFILENAME) $(GFSFLUXF00FLATFILENAME) $(NMMFLATFILENAME) $(NGACFLATFILENAME) $(GEFSFLATFILENAME) $(GEFSANLFLATFILENAME) $(GEFSF00FLATFILENAME) $(FV3LAMFLATFILENAME) $(HAFSSATFLATFILENAME) $(HAFSNOSATFLATFILENAME) $(GFSTWOFLATFILENAME) $(GFSTWOF00FLATFILENAME) $(HRRRFLATFILENAME) $(RAPFLATFILENAME) $(RRFSFLATFILENAME) $(RTMA3DFLATFILENAME) $(UFSAEROSOLFLATFILENAME) $(UFSAERO00FLATFILENAME) $(AQMFLATFILENAME) 
-$(GFSFLATFILENAME): $(GFSXMLS)
-	$(PERLXMLGFS)
-$(GFSGOESFLATFILENAME): $(GFSGOESXMLS)
-	$(PERLXMLGFSGOES)
-$(GFSANLFLATFILENAME): $(GFSANLXMLS)
-	$(PERLXMLGFSANL)
-$(GFSF00FLATFILENAME): $(GFSF00XMLS)
-	$(PERLXMLGFSF00)
-$(GFSFLUXFLATFILENAME): $(GFSFLUXXMLS)
-	$(PERLXMLGFSFLUX)
-$(GFSFLUXF00FLATFILENAME): $(GFSFLUXF00XMLS)
-	$(PERLXMLGFSFLUXF00)
-$(NMMFLATFILENAME): $(NMMXMLS)
-	$(PERLXMLNMM)
-$(NGACFLATFILENAME): $(NGACXMLS)
-	$(PERLXMLNGAC)
-$(GEFSFLATFILENAME): $(GEFSXMLS)
-	$(PERLXMLGEFS)
-$(GEFSANLFLATFILENAME): $(GEFSANLXMLS)
-	$(PERLXMLGEFSANL)
-$(GEFSF00FLATFILENAME): $(GEFSF00XMLS)
-	$(PERLXMLGEFSF00)
-$(FV3LAMFLATFILENAME): $(FV3LAMXMLS)
-	$(PERLXMLFV3LAM)
-$(HAFSSATFLATFILENAME): $(HAFSSATXMLS)
-	$(PERLXMLHAFSSAT)
-$(HAFSNOSATFLATFILENAME): $(HAFSNOSATXMLS)
-	$(PERLXMLHAFSNOSAT)
-$(GFSTWOFLATFILENAME): $(GFSTWOXMLS)
-	$(PERLXMLGFSTWO)
-$(GFSTWOF00FLATFILENAME): $(GFSTWOF00XMLS)
-	$(PERLXMLGFSTWOF00)
-$(HRRRFLATFILENAME): $(HRRRXMLS)
-	$(PERLXMLHRRR)
-$(RAPFLATFILENAME): $(RAPXMLS)
-	$(PERLXMLRAP)
-$(RRFSFLATFILENAME): $(RRFSXMLS)
-	$(PERLXMLRRFS)
-$(RTMA3DFLATFILENAME): $(RTMA3DXMLS)
-	$(PERLXML3DRTMA)
-$(UFSAEROSOLFLATFILENAME): $(UFSAEROSOLXMLS)
-	$(PERLXMLUFSAEROSOL)
-$(UFSAERO00FLATFILENAME): $(UFSAEROSOL00XMLS)
-	$(PERLXMLUFSAEROSOL00)
-$(AQMFLATFILENAME): $(AQMXMLS)
-	$(PERLXMLAQM)
-
-# Make clean
-
+.PHONY: all clean
+all: $(ALL_TXT)
 clean:
-	@echo
-	@echo '==== CLEAN ==================================================='
-	/bin/rm -f $(GFSFLATFILENAME) $(GFSGOESFLATFILENAME) $(GFSANLFLATFILENAME) $(GFSF00FLATFILENAME) $(NMMFLATFILENAME) $(NGACFLATFILENAME) $(GEFSFLATFILENAME) $(GEFSANLFLATFILENAME) $(GEFSF00FLATFILENAME) $(FV3LAMFLATFILENAME) $(HAFSSATFLATFILENAME) $(GFSTWOFLATFILENAME) $(GFSTWOF00FLATFILENAME) $(HRRRFLATFILENAME) $(RAPFLATFILENAME) $(RTMA3DFLATFILENAME) $(UFSAEROSOLFLATFILENAME) $(UFSAERO00FLATFILENAME) $(AQMFLATFILENAME)
+	$(RM) $(ALL_TXT)
+
+postxconfig-NT-GFS.txt:              postcntrl_gfs.xml              post_avblflds.xml
+postxconfig-NT-GFS-GOES.txt:         postcntrl_gfs_goes.xml         post_avblflds.xml
+postxconfig-NT-GFS-ANL.txt:          postcntrl_gfs_anl.xml          post_avblflds.xml
+postxconfig-NT-GFS-F00.txt:          postcntrl_gfs_f00.xml          post_avblflds.xml
+postxconfig-NT-GFS-FLUX.txt:         postcntrl_gfs_flux.xml         post_avblflds.xml
+postxconfig-NT-GFS-FLUX-F00.txt:     postcntrl_gfs_flux_f00.xml     post_avblflds.xml
+postxconfig-NT-NMM.txt:              nam_cntrl_cmaq.xml             nam_post_avblflds.xml
+postxconfig-NT-NGAC.txt:             ngac_postcntrl.xml             ngac_post_avblflds.xml
+postxconfig-NT-GEFS.txt:             postcntrl_gefs.xml             post_avblflds.xml
+postxconfig-NT-GEFS-F00.txt:         postcntrl_gefs_f00.xml         post_avblflds.xml
+postxconfig-NT-hafs_sat.txt:         postcntrl_hafs_sat.xml         post_avblflds.xml
+postxconfig-NT-hafs_nosat.txt:       postcntrl_hafs_nosat.xml       post_avblflds.xml
+postxconfig-NT-hafs.txt:             postcntrl_hafs.xml             post_avblflds.xml
+postxconfig-NT-GFS-TWO.txt:          postcntrl_gfs_two.xml          post_avblflds.xml
+postxconfig-NT-GFS-F00-TWO.txt:      postcntrl_gfs_f00_two.xml      post_avblflds.xml
+postxconfig-NT-hrrr.txt:             hrrr_postcntrl.xml             post_avblflds_raphrrr.xml
+postxconfig-NT-rap.txt:              rap_postcntrl.xml              post_avblflds_raphrrr.xml
+postxconfig-NT-fv3lam_rrfs.txt:      fv3lam_rrfs.xml                post_avblflds.xml
+postxconfig-NT-UFS-aerosol.txt:      postcntrl_ufs_aerosol.xml      post_avblflds.xml
+postxconfig-NT-UFS-aerosol-F00.txt:  postcntrl_ufs_aerosol_f00.xml  post_avblflds.xml
+postxconfig-NT-GEFS-aerosol.txt:     postcntrl_gefs_aerosol.xml     post_avblflds.xml
+postxconfig-NT-GEFS-F00-aerosol.txt: postcntrl_gefs_aerosol_f00.xml post_avblflds.xml
+postxconfig-NT-AQM.txt:              aqm.xml                        post_avblflds.xml
+
+%.txt:
+	$(PERL) $(PERLXML) $^ $@

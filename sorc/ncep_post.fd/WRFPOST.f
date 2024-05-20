@@ -1,5 +1,6 @@
 !> @file
 !> @brief wrfpost() drives the external wrf post processor.
+!> @return wrfpost 
 !>
 !> ### Program history log:
 !> Date | Programmer | Comments
@@ -30,8 +31,17 @@
 !> 2022-03-15 | W Meng                    | Unify FV3 based interfaces
 !> 2022-09-22 | L Zhang                   | Add option of nasa_on to process ufs-aerosols
 !> 2022-11-08 | K Wang                    | Replace aqfamaq_on with aqf_on
-!>
+!> 2023-01-24 | Sam Trahan                | write_ifi_debug_files flag for IFI debug capability
+!> 2023-03-21 | Jesse Meng                | Add slrutah_on option to use U Utah SLR
+!> 2023-04-04 | Li(Kate Zhang)  |Add namelist optoin for CCPP-Chem (UFS-Chem) 
+!         and 2D diag. output (d2d_chem) for GEFS-Aerosols and CCPP-Chem model.
+!> 2023-05-20 | Rahul Mahajan             | Bug fix for fileNameFlat as namelist configurable
+!> 2023-08-16 | Yali Mao                  | Add gtg_on logical option
+!> 2023-11-29 | Eric James                | Add method_blsn logical option
 !> @author Mike Bladwin NSSL/SPC @date 2002-06-18
+!---------------------------------------------------------------------
+!> @return wrfpost
+!---------------------------------------------------------------------
       PROGRAM WRFPOST
 
 !
@@ -115,10 +125,12 @@
               ista, iend, ista_m, iend_m, ista_2l, iend_2u,                                          &
               jsta, jend, jsta_m, jend_m, jsta_2l, jend_2u, novegtype, icount_calmict, npset, datapd,&
               lsm, fld_info, etafld2_tim, eta2p_tim, mdl2sigma_tim, cldrad_tim, miscln_tim,          &
-              mdl2agl_tim, mdl2std_tim, mdl2thandpv_tim, calrad_wcloud_tim,nasa_on,                  &
+              mdl2agl_tim, mdl2std_tim, mdl2thandpv_tim, calrad_wcloud_tim,nasa_on,gccpp_on,         &
               fixed_tim, time_output, imin, surfce2_tim, komax, ivegsrc, d3d_on, gocart_on,rdaod,    &
-              readxml_tim, spval, fullmodelname, submodelname, hyb_sigp, filenameflat, aqf_on,numx
+              readxml_tim, spval, fullmodelname, submodelname, hyb_sigp, filenameflat, aqf_on,numx,  &
+              run_ifi_tim, slrutah_on, d2d_chem, gtg_on, method_blsn
       use grib2_module,   only: gribit2,num_pset,nrecout,first_grbtbl,grib_info_finalize
+      use upp_ifi_mod, only: write_ifi_debug_files
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
       implicit none
 !
@@ -142,8 +154,8 @@
 !
       integer      :: kpo,kth,kpv
       real,dimension(komax) :: po,th,pv
-      namelist/nampgb/kpo,po,kth,th,kpv,pv,fileNameAER,d3d_on,gocart_on,nasa_on,popascal &
-                     ,hyb_sigp,rdaod,aqf_on,vtimeunits,numx
+      namelist/nampgb/kpo,po,kth,th,kpv,pv,fileNameAER,d3d_on,gocart_on,gccpp_on, nasa_on,gtg_on,method_blsn,popascal &
+                     ,hyb_sigp,rdaod,d2d_chem, aqf_on,slrutah_on, vtimeunits,numx,write_ifi_debug_files
       integer      :: itag_ierr
       namelist/model_inputs/fileName,IOFORM,grib,DateStr,MODELNAME,SUBMODELNAME &
                      ,fileNameFlux,fileNameFlat
@@ -175,8 +187,6 @@
 !     IF WE HAVE MORE THAN 1 MPI TASK THEN WE WILL FIRE UP THE IO SERVER
 !     THE LAST TASK ( IN THE CONTEXT OF MPI_COMM_WORLD ) IS THE I/O SERVER
 !
-      print*,'ME,NUM_PROCS,NUM_SERVERS=',ME,NUM_PROCS,NUM_SERVERS
-
       if (me == 0) CALL W3TAGB('nems     ',0000,0000,0000,'np23   ')
 
       if ( me >= num_procs ) then
@@ -190,24 +200,18 @@
 !KaYee: Read itag in Fortran Namelist format
 !Set default 
        SUBMODELNAME='NONE'
+!Set control file name
+       fileNameFlat='postxconfig-NT.txt'
        numx=1
 !open namelist
        open(5,file='itag')
        read(5,nml=model_inputs,iostat=itag_ierr,err=888)
-       !print*,'itag_ierr=',itag_ierr
 888    if (itag_ierr /= 0) then
-       print*,'Incorrect namelist variable(s) found in the itag file,stopping!'
+       print*,'Incorrect namelist variable(s) found in the itag file,stopping.'
        stop
        endif
+       if (me == 0) write(6, model_inputs)
        
-       if (me==0) print*,'fileName= ',fileName
-         if (me==0) print*,'IOFORM= ',IOFORM
-         !if (me==0) print*,'OUTFORM= ',grib
-         if (me==0) print*,'OUTFORM= ',grib
-         if (me==0) print*,'DateStr= ',DateStr
-         if (me==0) print*,'MODELNAME= ',MODELNAME
-         if (me==0) print*,'SUBMODELNAME= ',SUBMODELNAME
-          if (me==0) print*,'numx= ',numx
 !       if(MODELNAME == 'NMM')then
 !        read(5,1114) VTIMEUNITS
 ! 1114   format(a4)
@@ -216,9 +220,8 @@
 !
  303  format('MODELNAME="',A,'" SUBMODELNAME="',A,'"')
 
-       write(0,*)'MODELNAME: ', MODELNAME, SUBMODELNAME
+        if(me==0) write(*,*)'MODELNAME: ', MODELNAME, SUBMODELNAME
 
-      if (me==0) print 303,MODELNAME,SUBMODELNAME
 ! assume for now that the first date in the stdin file is the start date
         read(DateStr,300) iyear,imn,iday,ihrst,imin
         if (me==0) write(*,*) 'in WRFPOST iyear,imn,iday,ihrst,imin',                &
@@ -239,16 +242,9 @@
  121    format(a4)
 
 !KaYee: Read in GFS/FV3 runs in Fortran Namelist Format.
-        if (me==0) print*,'MODELNAME= ',MODELNAME,'grib=',grib
-        if(MODELNAME == 'GFS' .OR. MODELNAME == 'FV3R') then
-          if (me == 0) print*,'first two file names in GFS or FV3= '  &
-                               ,trim(fileName),trim(fileNameFlux)
-        end if
-
       if(grib=='grib2') then
         gdsdegr = 1.d6
       endif
-      if (me==0) print *,'gdsdegr=',gdsdegr
 ! 
 ! set default for kpo, kth, th, kpv, pv     
         kpo = 0
@@ -261,19 +257,21 @@
         hyb_sigp    = .true.
         d3d_on      = .false.
         gocart_on   = .false.
+        gccpp_on    = .false.
         nasa_on     = .false.
         aqf_on      = .false.
+        slrutah_on  = .false.
+        gtg_on   = .false.
+        method_blsn = .true.
         popascal    = .false.
         fileNameAER = ''
         rdaod       = .false.
-!       gocart_on   = .true.
-!       d3d_on      = .true.
+        d2d_chem     = .false.
+        vtimeunits  = ''
 
-!set control file name
-        fileNameFlat='postxconfig-NT.txt'
         read(5,nampgb,iostat=iret,end=119)
  119    continue
-       if (me==0) print*,'in itag, mod(num_procs,numx)=', mod(num_procs,numx)
+        if (me == 0) write(6, nampgb)
        if(mod(num_procs,numx)/=0) then
          if (me==0) then
            print*,'total proces, num_procs=', num_procs 
@@ -348,7 +346,6 @@
           end if
         end if
         LSMP1 = LSM+1
-        if (me==0) print*,'LSM, SPL = ',lsm,spl(1:lsm)        
       
  116    continue
 
@@ -362,10 +359,8 @@
         if(TRIM(IOFORM) == 'netcdf' .OR. TRIM(IOFORM) == 'netcdfpara') THEN
          IF(MODELNAME == 'NCAR' .OR. MODELNAME == 'RAPR' .OR. MODELNAME == 'NMM') THEN
           call ext_ncd_ioinit(SysDepInfo,Status)
-          print*,'called ioinit', Status
           call ext_ncd_open_for_read( trim(fileName), 0, 0, " ",          &
             DataHandle, Status)
-          print*,'called open for read', Status
           if ( Status /= 0 ) then
             print*,'error opening ',fileName, ' Status = ', Status ; stop
           endif
@@ -382,13 +377,10 @@
           LM1   = LM-1
           IM_JM = IM*JM
        
-          print*,'im jm lm from wrfout= ',im,jm, lm
-       
 ! Read and set global value for surface physics scheme
           call ext_ncd_get_dom_ti_integer(DataHandle                      &
             ,'SF_SURFACE_PHYSICS',itmp,1,ioutcount, status )
           iSF_SURFACE_PHYSICS = itmp
-          print*,'SF_SURFACE_PHYSICS= ',iSF_SURFACE_PHYSICS
 ! set NSOIL to 4 as default for NOAH but change if using other
 ! SFC scheme
           NSOIL = 4
@@ -399,7 +391,6 @@
           ELSE IF(itmp == 7) then ! Pleim Xu
             NSOIL = 2
           END IF
-          print*,'NSOIL from wrfout= ',NSOIL
 
           call ext_ncd_ioclose ( DataHandle, Status )
          ELSE
@@ -431,15 +422,12 @@
             print*,'nsoil not found; assigning to 4'
             NSOIL=4 !set nsoil to 4 for NOAH
           endif
-          if(me==0)print*,'SF_SURFACE_PHYSICS= ',iSF_SURFACE_PHYSICS
-          if(me==0)print*,'NSOIL= ',NSOIL
 ! read imp_physics
           Status=nf90_get_att(ncid2d,nf90_global,'imp_physics',imp_physics)
           if(Status/=0)then
             print*,'imp_physics not found; assigning to GFDL 11'
             imp_physics=11
           endif
-          if (me == 0) print*,'MP_PHYSICS= ',imp_physics
 ! get dimesions
           Status = nf90_inq_dimid(ncid3d,'grid_xt',varid)
           if ( Status /= 0 ) then
@@ -477,8 +465,6 @@
 ! set NSOIL to 4 as default for NOAH but change if using other
 ! SFC scheme
 !          NSOIL = 4
-
-          print*,'im jm lm nsoil from fv3 output = ',im,jm,lm,nsoil 
          END IF 
 
         ELSE IF(TRIM(IOFORM) == 'binary'       .OR.                       &
@@ -492,7 +478,6 @@
           spval = 9.99e20
           IF(ME == 0)THEN
             call nemsio_init(iret=status)
-            print *,'nemsio_init, iret=',status
             call nemsio_open(nfile,trim(filename),'read',iret=status)
             if ( Status /= 0 ) then
               print*,'error opening ',fileName, ' Status = ', Status ; stop
@@ -519,9 +504,7 @@
           call mpi_bcast(lm,   1,MPI_INTEGER,0, mpi_comm_comp,status)
           call mpi_bcast(nsoil,1,MPI_INTEGER,0, mpi_comm_comp,status)
 
-          if (me == 0) print*,'im jm lm nsoil from NEMS= ',im,jm, lm ,nsoil
           call mpi_bcast(global,1,MPI_LOGICAL,0,mpi_comm_comp,status)
-          if (me == 0) print*,'Is this a global run ',global
           LP1   = LM+1
           LM1   = LM-1
           IM_JM = IM*JM
@@ -553,8 +536,6 @@
 
 
         CALL MPI_FIRST()
-        print*,'jsta,jend,jsta_m,jend_m,jsta_2l,jend_2u,spval=',jsta,        &
-                jend,jsta_m,jend_m, jsta_2l,jend_2u,spval
         CALL ALLOCATE_ALL()
      
 !
@@ -585,11 +566,9 @@
  
         IF(TRIM(IOFORM) == 'netcdf' .OR. TRIM(IOFORM) == 'netcdfpara') THEN
           IF(MODELNAME == 'NCAR' .OR. MODELNAME == 'RAPR') THEN
-            print*,'CALLING INITPOST TO PROCESS NCAR NETCDF OUTPUT'
             CALL INITPOST
           ELSE IF (MODELNAME == 'FV3R' .OR. MODELNAME == 'GFS') THEN
 ! use parallel netcdf library to read output directly
-            print*,'CALLING INITPOST_NETCDF'
             CALL INITPOST_NETCDF(ncid2d,ncid3d)
           ELSE
             PRINT*,'POST does not have netcdf option for model,',MODELNAME,' STOPPING,'
@@ -688,14 +667,14 @@
 !                      --------    grib2 processing  ---------------
 !                                 ------------------
 !        elseif (grib == "grib2") then
-        if (me==0) write(0,*) ' in WRFPOST OUTFORM= ',grib
-        if (me==0) write(0,*) '  GRIB1 IS NOT SUPPORTED ANYMORE'    
+        if (me==0) write(*,*) ' in WRFPOST OUTFORM= ',grib
+        if (me==0) write(*,*) '  GRIB1 IS NOT SUPPORTED ANYMORE'    
         if (grib == "grib2") then
           do while (npset < num_pset)
             npset = npset+1
-            if (me==0) write(0,*)' in WRFPOST npset=',npset,' num_pset=',num_pset
+            if (me==0) write(*,*)' in WRFPOST npset=',npset,' num_pset=',num_pset
             CALL SET_OUTFLDS(kth,th,kpv,pv)
-            if (me==0) write(0,*)' in WRFPOST size datapd',size(datapd) 
+            if (me==0) write(*,*)' in WRFPOST size datapd',size(datapd) 
             if(allocated(datapd)) deallocate(datapd)
 !Jesse x-decomposition
 !           allocate(datapd(im,1:jend-jsta+1,nrecout+100))
@@ -711,8 +690,8 @@
               enddo
             enddo
             call get_postfilename(post_fname)
-            if (me==0) write(0,*)'post_fname=',trim(post_fname)
-            if (me==0) write(0,*)'get_postfilename,post_fname=',trim(post_fname), &
+            if (me==0) write(*,*)'post_fname=',trim(post_fname)
+            if (me==0) write(*,*)'get_postfilename,post_fname=',trim(post_fname), &
                       'npset=',npset, 'num_pset=',num_pset,            &
                       'iSF_SURFACE_PHYSICS=',iSF_SURFACE_PHYSICS
 !     
@@ -724,11 +703,11 @@
             CALL PROCESS(kth,kpv,th(1:kth),pv(1:kpv),iostatusD3D)
             IF(ME == 0) WRITE(6,*)'WRFPOST:  PREPARE TO PROCESS NEXT GRID'
 !
-!           write(0,*)'enter gribit2 before mpi_barrier'
+!           write(*,*)'enter gribit2 before mpi_barrier'
             call mpi_barrier(mpi_comm_comp,ierr)
 
 !           if(me==0)call w3tage('bf grb2  ')
-!           write(0,*)'enter gribit2 after mpi barrier'
+!           write(*,*)'enter gribit2 after mpi barrier'
             call gribit2(post_fname)
             deallocate(datapd)
             deallocate(fld_info)
@@ -767,6 +746,7 @@
          print*, 'FIXED_tim = ',FIXED_tim
          print*, 'MDL2THANDPV_tim =  ',MDL2THANDPV_tim
          print*, 'CALRAD_WCLOUD_tim = ',CALRAD_WCLOUD_tim    
+         print*, 'RUN_IFI_tim = ',RUN_IFI_tim
          print*, 'Total time = ',(mpi_wtime() - bbtim)
          print*, 'Time for OUTPUT = ',time_output
          print*, 'Time for READxml = ',READxml_tim

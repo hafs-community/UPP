@@ -9,7 +9,7 @@ defaults:
 
 # Set I_MPI_CC/F90 so Intel MPI wrapper uses icc/ifort instead of gcc/gfortran
 env:
-  cache_key: intel2  # The number (#) following the cache_key "intel" is to flush Action cache.
+  cache_key: intel3  # The number (#) following the cache_key "intel" is to flush Action cache.
   CC: icc
   FC: ifort
   CXX: icpc
@@ -33,7 +33,7 @@ env:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - name: checkout-upp  # This is for getting spack.yaml
@@ -45,7 +45,7 @@ jobs:
       # Cache spack, compiler and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             spack
@@ -59,14 +59,13 @@ jobs:
           sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
-          sudo apt-get install intel-oneapi-dev-utilities intel-oneapi-mpi-devel intel-oneapi-openmp intel-oneapi-compiler-fortran intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+          sudo apt-get install intel-oneapi-dev-utilities intel-oneapi-mpi-devel intel-oneapi-openmp intel-oneapi-compiler-fortran-2023.2.1 intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2023.2.1
           echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bash_profile
 
       # Install dependencies using Spack
       - name: install-dependencies-with-spack
         if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
-          sudo mv /usr/local/ /usr_local_mv
           git clone -c feature.manyFiles=true https://github.com/NOAA-EMC/spack.git
           source spack/share/spack/setup-env.sh
           spack env create upp-env UPP/ci/spack.yaml
@@ -77,10 +76,11 @@ jobs:
           spack add intel-oneapi-mpi
           spack concretize
           spack install --dirty -v --fail-fast
+          spack clean --all
 
   build:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - name: checkout-upp
@@ -94,7 +94,7 @@ jobs:
 
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             spack

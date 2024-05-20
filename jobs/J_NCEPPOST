@@ -108,6 +108,7 @@ export POSTGPEXEC=${POSTGPEXEC:-$EXECgfs/gfs_ncep_post}
 ####################################
 # Specify Special Post Vars
 ####################################
+numx=${numx:-2}
 if [ $RUN = gfs ];then
   export FHOUT_PGB=${FHOUT_GFS:-3} #Output frequency of gfs pgb file at 1.0 and 0.5 deg.
 fi
@@ -146,7 +147,11 @@ env
 #########################################################
 # Execute the Script
 #########################################################
-$SCRgfs/ex${RUN}_atmos_nceppost.sh
+if [ $WAFSF = "YES" ] ; then
+    $SCRgfs/exwafs_atmos_nceppost.sh
+else
+    $SCRgfs/ex${RUN}_atmos_nceppost.sh
+fi
 
 ##############################
 # Remove the Temporary working directory

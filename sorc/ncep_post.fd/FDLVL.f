@@ -1,5 +1,5 @@
 !> @file
-!> @brief Subroutine that computes T, Q, U, V on the flight levels (FD).
+!> @brief Subroutine that computes T, Q, U, V, P, and ICING on the flight levels (FD).
 !>
 !> This routine computes temperature, spec. hum, u wind component,
 !> and v wind component on the NFD=6 FD levels. The 
@@ -27,6 +27,8 @@
 !> @param[out] QFD Spec hum on FD levels.
 !> @param[out] UFD U wind (m/s) on FD levels.
 !> @param[out] VFD V wind (m/s) on FD levels.
+!> @param[out] PFD Pressure (Pa) on FD levels.
+!> @param[out] ICINGFD Icing on FD levels (see https://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_doc/grib2_table4-207.shtml).
 !>     
 !> ### Program History Log
 !> Date | Programmer | Comments
@@ -42,6 +44,18 @@
 !> 2022-09-22 | Li(Kate) Zhang   | Remove Dust=> AERFD
 !>
 !> @author Russ Treadon W/NP2 @date 1992-12-22
+!--------------------------------------------------------------------------
+!> fdlvl() Subroutine that computes T, Q, U, V, P, ICING on the flight levels (FD).
+!> 
+!> @param[in] ITYPE Flag that determines whether MSL (1) or AGL (2) Levels are used.
+!> @param[out] TFD Temperature (K) on FD levels.
+!> @param[out] QFD Spec hum on FD levels.
+!> @param[out] UFD U wind (m/s) on FD levels.
+!> @param[out] VFD V wind (m/s) on FD levels.
+!> @param[out] PFD Pressure (Pa) on FD levels.
+!> @param[out] ICINGFD Icing on FD levels.
+!--------------------------------------------------------------------------
+
       SUBROUTINE FDLVL(ITYPE,TFD,QFD,UFD,VFD,PFD,ICINGFD)
 
 !     
@@ -51,7 +65,7 @@
       use masks,      only: LMH
       use params_mod, only: GI, G
       use ctlblk_mod, only: JSTA, JEND, SPVAL, JSTA_2L, JEND_2U, LM, JSTA_M, &
-                            JEND_M, HTFD, NFD, IM, JM, NBIN_DU, gocart_on,   &
+                            JEND_M, HTFD, NFD, IM, JM, NBIN_DU,    &
                             MODELNAME, ISTA, IEND, ISTA_2L, IEND_2U, ISTA_M, IEND_M
       use gridspec_mod, only: GRIDTYPE
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -778,6 +792,7 @@
 !> 2017-06-01 | Y Mao        | Add FD levels for GTG(EDPARM CATEDR MWTURB) and allow levels input from control file
 !> 2019-09-25 | Y Mao        | Seperate mass from UV allow array of mass input to interpolate multiple fields with the same levels at one time. Dust=> AERFD can be processed when NIN=NBIN_DU
 !> 2020-11-10 | Jesse Meng   | Use UPP_PHYSICS module
+!> 2022-05-25 | Y Mao        | Remove interpolation of w/omega/Hydrometeor fields on FD levels
 !>
 !> @author Russ Treadon W/NP2 @date 1992-12-22
       SUBROUTINE FDLVL_MASS(ITYPE,NFD,PTFD,HTFD,NIN,QIN,QTYPE,QFD)
@@ -976,9 +991,7 @@
                       endif
                    END IF       ! endif loop for deducing T and Q differently for GFS  
 
-                   if(QTYPE(N) == "W") QFD(I,J,IFD,N)=QIN(I,J,LM,N) ! W OMGA
                    if(QTYPE(N) == "K") QFD(I,J,IFD,N)= max(0.0,0.5*(QIN(I,J,LM,N)+QIN(I,J,LM-1,N))) ! TKE
-                   if(QTYPE(N) == "C") QFD(I,J,IFD,N)=0.0 ! Hydrometeor fields
                  END DO
 
               ENDIF ! Underground

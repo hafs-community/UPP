@@ -51,7 +51,12 @@
 !!   21-10-14  J MENG - 2D DECOMPOSITION
 !!   22-09-22  L Zhang -  Li(Kate) Zhang - Remove Dust=> AERFD
 !!   22-10-06  W Meng - Generate SPC fields with RRFS input
-!!     
+!!   23-01-24  Sam Trahan - when IFI is enabled, calculate and store CAPE & CIN. Add allocate_cape_arrays
+!!   23-04-03  E Colon - Added additional array assignments to resolve SPC fields crashes for RRFS input
+!!   23-08-16  Y Mao - Updated interpolation to flight levels for regional GTG fields
+!!   23-08-24  Y Mao - Add gtg_on option for GTG interpolation
+!!   24-01-07  H LIN - Add CIT output in NCAR GTG turbulence calculation
+!!   24-01-09  Y Mao - Correct the height level of EDPARM (ID=467) on 0m to index 52 from the control file, instead of 0.
 !! USAGE:    CALL MISCLN
 !!   INPUT ARGUMENT LIST:
 !!
@@ -90,16 +95,17 @@
 !
 !
       use vrbls3d,    only: pmid, uh, vh, t, zmid, zint, pint, alpint, q, omga
-      use vrbls3d,    only: catedr,mwt,gtg
+      use vrbls3d,    only: catedr,mwt,gtg, cit
       use vrbls2d,    only: pblh, cprate, fis, T500, T700, Z500, Z700,&
-                            teql,ieql
+                            teql,ieql, cape,cin
       use masks,      only: lmh
       use params_mod, only: d00, d50, h99999, h100, h1, h1m12, pq0, a2, a3, a4,    &
                             rhmin, rgamog, tfrz, small, g
       use ctlblk_mod, only: grib, cfld, fld_info, datapd, im, jsta, jend, jm, jsta_m, jend_m, &
                             nbnd, nbin_du, lm, htfd, spval, pthresh, nfd, petabnd, me,&
                             jsta_2l, jend_2u, MODELNAME, SUBMODELNAME, &
-                            ista, iend, ista_m, iend_M, ista_2l, iend_2u
+                            ista, iend, ista_m, iend_M, ista_2l, iend_2u, &
+                            ifi_flight_levels, gtg_on
       use rqstfld_mod, only: iget, lvls, id, iavblfld, lvlsxml
       use grib2_module, only: pset
       use upp_physics, only: FPVSNEW,CALRH_PW,CALCAPE,CALCAPE2,TVIRTUAL
@@ -126,7 +132,7 @@
 !     
 !     DECLARE VARIABLES.
 !     
-      LOGICAL NORTH, FIELD1,FIELD2
+      LOGICAL NORTH, FIELD1,FIELD2, NEED_IFI
       LOGICAL, dimension(ISTA:IEND,JSTA:JEND) :: DONE, DONE1
 
       INTEGER, allocatable ::  LVLBND(:,:,:),LB2(:,:)
@@ -144,7 +150,7 @@
                                             UBND,   VBND,   RHBND,     &
                                             WBND,   T7D,    Q7D,       &
                                             U7D,    V6D,    P7D,       &
-                                            ICINGFD,GTGFD,CATFD,MWTFD
+                                            ICINGFD,MIDCAL
 
       real, dimension(:,:),allocatable ::   QM8510, RH4710, RH8498,    &
                                             RH4796, RH1847, UST, VST,  &
@@ -157,10 +163,11 @@
       real, dimension(:,:),  allocatable :: USHR1, VSHR1, USHR6, VSHR6, &
                                             MAXWP, MAXWZ, MAXWU, MAXWV, &
                                             MAXWT
-      INTEGER,dimension(:,:),allocatable :: LLOW, LUPP
+      INTEGER,dimension(:,:),allocatable :: LLOW,LUPP,LLOW_ZINT,IEQL_ZINT, &
+					    Z_MIDCAL
       REAL, dimension(:,:),allocatable   :: CANGLE,ESHR,UVECT,VVECT,&
                                             EFFUST,EFFVST,FSHR,HTSFC,&
-                                            ESRH
+                                            ESRH,Z_TEMP
 !
       integer I,J,ii,jj,L,ITYPE,ISVALUE,LBND,ILVL,IFD,ITYPEFDLVL(NFD),    &
               iget1, iget2, iget3, LLMH,imax,jmax,lmax
@@ -169,12 +176,8 @@
               SCINtmp,MUCAPEtmp,MUCINtmp,MLLCLtmp,ESHRtmp,MLCAPEtmp,STP,&
               FSHRtmp,MLCINtmp,SLCLtmp,LAPSE,SHIP
 
-!     Variables introduced to allow FD levels from control file - Y Mao
-      integer :: N,NFDCTL
-      REAL, allocatable :: HTFDCTL(:)
-      integer, allocatable :: ITYPEFDLVLCTL(:)
       integer IE,IW,JN,JS,IVE(JM),IVW(JM),JVN,JVS
-      integer ISTART,ISTOP,JSTART,JSTOP,MIDCAL
+      integer ISTART,ISTOP,JSTART,JSTOP
       real    dummy(ista:iend,jsta:jend)
       integer idummy(ista:iend,jsta:jend)
 !     NEW VARIABLES USED FOR EFFECTIVE LAYER
@@ -197,12 +200,24 @@
       REAL, DIMENSION(:), ALLOCATABLE  :: P_AMB, T_AMB, Q_AMB, ZINT_AMB
       REAL, DIMENSION(:,:,:), ALLOCATABLE  :: TPAR_BASE, TPAR_TOPS
 
+!     Variables introduced to allow FD levels from control file - Y Mao
+      integer :: N,NFDCTL
+      REAL, allocatable :: HTFDCTL(:)
+      integer, allocatable :: ITYPEFDLVLCTL(:)
+      real, allocatable :: QIN(:,:,:,:), QFD(:,:,:,:)
+      character, allocatable :: QTYPE(:)
+
+      integer, parameter :: NFDMAX=10 ! Max number of fields with the same HTFDCTL
+      integer :: IDS(NFDMAX) ! All field IDs with the same HTFDCTL
+      integer :: nFDS ! How many fields with the same HTFDCTL in the control file
+      integer :: iID ! which field with HTFDCTL
 !     
 !****************************************************************************
 !     START MISCLN HERE.
 !     
        debugprint = .FALSE.
        
+       NEED_IFI = IGET(1007)>0 .or. IGET(1008)>0 .or. IGET(1009)>0 .or. IGET(1010)>0
 
          allocate(USHR1(ista_2l:iend_2u,jsta_2l:jend_2u),VSHR1(ista_2l:iend_2u,jsta_2l:jend_2u), &
                   USHR6(ista_2l:iend_2u,jsta_2l:jend_2u),VSHR6(ista_2l:iend_2u,jsta_2l:jend_2u))
@@ -1187,127 +1202,148 @@
 !
 !     ***BLOCK 3-2:  FD LEVEL (from control file) GTG
 !     
-      IF(IGET(467)>0.or.IGET(468)>0.or.IGET(469)>0) THEN
-         if(IGET(467)>0) THEN          ! GTG
-            N=IAVBLFLD(IGET(467))
-            NFDCTL=size(pset%param(N)%level)
-            if(allocated(ITYPEFDLVLCTL)) deallocate(ITYPEFDLVLCTL)
-            allocate(ITYPEFDLVLCTL(NFDCTL))
-            DO IFD = 1,NFDCTL
-               ITYPEFDLVLCTL(IFD)=LVLS(IFD,IGET(467))
-            enddo
-            if(allocated(HTFDCTL)) deallocate(HTFDCTL)
-            allocate(HTFDCTL(NFDCTL))
-            HTFDCTL=pset%param(N)%level
-!           print *, "GTG 467 levels=",pset%param(N)%level
-            allocate(GTGFD(ISTA:IEND,JSTA:JEND,NFDCTL))
-            call FDLVL_MASS(ITYPEFDLVLCTL,NFDCTL,HTFDCTL,GTG,GTGFD)
-!           print *, "GTG 467 Done GTGFD=",me,GTGFD(IM/2,jend,1:NFDCTL)
-            DO IFD = 1,NFDCTL
-              IF (LVLS(IFD,IGET(467))>0) THEN
-!$omp parallel do private(i,j)
-                 DO J=JSTA,JEND
-                 DO I=ISTA,IEND
-                    GRID1(I,J)=GTGFD(I,J,IFD)
-                 ENDDO
-                 ENDDO
-                 if(grib=='grib2') then
-                   cfld=cfld+1
-                   fld_info(cfld)%ifld=IAVBLFLD(IGET(467))
-                   fld_info(cfld)%lvl=LVLSXML(IFD,IGET(467))
+      IF(gtg_on .and. (IGET(467)>0.or.IGET(468)>0.or.IGET(469)>0.or.IGET(477)>0)) THEN
+         ! MASS FIELDS INTERPOLATION
+         if(allocated(QIN)) deallocate(QIN)
+         if(allocated(QTYPE)) deallocate(QTYPE)
+         ALLOCATE(QIN(ISTA:IEND,JSTA:JEND,LM,NFDMAX))
+         ALLOCATE(QTYPE(NFDMAX))
+
+!        INITIALIZE INPUTS
+         nFDS = 0
+         IF(IGET(467) > 0) THEN
+            nFDS = nFDS + 1
+            IDS(nFDS) = 467
+            QIN(ISTA:IEND,JSTA:JEND,1:LM,nFDS)=gtg(ISTA:IEND,JSTA:JEND,1:LM)
+            QTYPE(nFDS)="O"
+         end if
+         IF(IGET(468) > 0) THEN
+            nFDS = nFDS + 1
+            IDS(nFDS) = 468
+            QIN(ISTA:IEND,JSTA:JEND,1:LM,nFDS)=catedr(ISTA:IEND,JSTA:JEND,1:LM)
+            QTYPE(nFDS)="O"
+         end if
+         IF(IGET(469) > 0) THEN
+            nFDS = nFDS + 1
+            IDS(nFDS) = 469
+            QIN(ISTA:IEND,JSTA:JEND,1:LM,nFDS)=mwt(ISTA:IEND,JSTA:JEND,1:LM)
+            QTYPE(nFDS)="O"
+         end if
+
+         IF(IGET(477) > 0) THEN
+            nFDS = nFDS + 1
+            IDS(nFDS) = 477
+            QIN(ISTA:IEND,JSTA:JEND,1:LM,nFDS)=cit(ISTA:IEND,JSTA:JEND,1:LM)
+            QTYPE(nFDS)="O"
+         end if
+
+
+!        FOR Regional GTG, ALL LEVLES OF DIFFERENT VARIABLES ARE THE SAME, except for EDPARM
+!        Use levels of iID=468 for interpolation
+         iID=468
+         N = IAVBLFLD(IGET(iID))
+         NFDCTL=size(pset%param(N)%level)
+         if(allocated(ITYPEFDLVLCTL)) deallocate(ITYPEFDLVLCTL)
+         allocate(ITYPEFDLVLCTL(NFDCTL))
+         DO IFD = 1,NFDCTL
+            ITYPEFDLVLCTL(IFD)=LVLS(IFD,IGET(iID))
+         ENDDO
+         if(allocated(HTFDCTL)) deallocate(HTFDCTL)
+         allocate(HTFDCTL(NFDCTL))
+         HTFDCTL=pset%param(N)%level
+
+         if(allocated(QFD)) deallocate(QFD)
+         ALLOCATE(QFD(ISTA:IEND,JSTA:JEND,NFDCTL,nFDS))
+         QFD=SPVAL
+
+         ! pset%param(N)%level will not be used in FDLVL_MASS() because QTYPE='O'
+         call FDLVL_MASS(ITYPEFDLVLCTL,NFDCTL,pset%param(N)%level,HTFDCTL,nFDS,QIN,QTYPE,QFD)
+
+!        Adjust values before output
+         DO N=1,nFDS
+            iID=IDS(N)
+            if(iID==467 .or. iID==468 .or. iID==469 .or. iID==477) then
+               DO IFD = 1,NFDCTL
+                  DO J=JSTA,JEND
+                  DO I=ISTA,IEND
+                     if(QFD(I,J,IFD,N) < SPVAL) then
+                        QFD(I,J,IFD,N)=max(0.0,QFD(I,J,IFD,N))
+                        QFD(I,J,IFD,N)=min(1.0,QFD(I,J,IFD,N))
+                     endif
+                  ENDDO
+                  ENDDO
+               ENDDO
+            endif
+         ENDDO
+         
+!        Output
+         DO N=1,nFDS
+            iID=IDS(N)
+            
+!           Regional GTG has a legend of special defination
+!           0 m holds the max value of the whole vertical column
+!           0 m is the last height in the control file            
+            if (iID == 467) then
+               EGRID1 = SPVAL
+               DO IFD = 1,NFDCTL
+                  DO J=JSTA,JEND
+                  DO I=ISTA,IEND
+                     work1=QFD(I,J,IFD,N)
+                     if(EGRID1(I,J)>=SPVAL) then
+                        EGRID1(I,J)=work1
+                     elseif(work1<SPVAL) then
+                        if(EGRID1(I,J)<work1) EGRID1(I,J)=work1
+                     endif
+                  ENDDO
+                  ENDDO
+               ENDDO
+               DO J=JSTA,JEND
+               DO I=ISTA,IEND
+                  GRID1(I,J)=EGRID1(I,J)
+               ENDDO
+               ENDDO
+               if(grib=='grib2') then
+                  cfld=cfld+1
+                  fld_info(cfld)%ifld=IAVBLFLD(IGET(iID))
+                  fld_info(cfld)%lvl=NFDCTL+1
 !$omp parallel do private(i,j,ii,jj)
-                   do j=1,jend-jsta+1
-                      jj = jsta+j-1
-                      do i=1,iend-ista+1
-                      ii = ista+i-1
-                         datapd(i,j,cfld) = GRID1(ii,jj)
-                      enddo
-                   enddo
-                 endif
-              ENDIF
-            ENDDO
-         endif
-
-         if(IGET(468)>0) THEN          ! CAT
-            N=IAVBLFLD(IGET(468))
-            NFDCTL=size(pset%param(N)%level)
-            if(allocated(ITYPEFDLVLCTL)) deallocate(ITYPEFDLVLCTL)
-            allocate(ITYPEFDLVLCTL(NFDCTL))
+                  do j=1,jend-jsta+1
+                     jj = jsta+j-1
+                     do i=1,iend-ista+1
+                        ii = ista+i-1
+                        datapd(i,j,cfld) = GRID1(ii,jj)
+                     enddo
+                  enddo
+               endif
+            end if
+            
             DO IFD = 1,NFDCTL
-               ITYPEFDLVLCTL(IFD)=LVLS(IFD,IGET(468))
-            enddo
-            if(allocated(HTFDCTL)) deallocate(HTFDCTL)
-            allocate(HTFDCTL(NFDCTL))
-            HTFDCTL=pset%param(N)%level
-            allocate(CATFD(ISTA:IEND,JSTA:JEND,NFDCTL))
-            call FDLVL_MASS(ITYPEFDLVLCTL,NFDCTL,HTFDCTL,catedr,CATFD)
-            DO IFD = 1,NFDCTL
-              IF (LVLS(IFD,IGET(468))>0) THEN
+               IF (LVLS(IFD,IGET(iID)) > 0) THEN
 !$omp parallel do private(i,j)
-                 DO J=JSTA,JEND
-                 DO I=ISTA,IEND
-                    GRID1(I,J)=CATFD(I,J,IFD)
-                 ENDDO
-                 ENDDO
-                 if(grib=='grib2') then
-                   cfld=cfld+1
-                   fld_info(cfld)%ifld=IAVBLFLD(IGET(468))
-                   fld_info(cfld)%lvl=LVLSXML(IFD,IGET(468))
+                  DO J=JSTA,JEND
+                  DO I=ISTA,IEND
+                     GRID1(I,J)=QFD(I,J,IFD,N)
+                  ENDDO
+                  ENDDO
+                  if(grib=='grib2') then
+                     cfld=cfld+1
+                     fld_info(cfld)%ifld=IAVBLFLD(IGET(iID))
+                     fld_info(cfld)%lvl=LVLSXML(IFD,IGET(iID))
 !$omp parallel do private(i,j,ii,jj)
-                   do j=1,jend-jsta+1
-                      jj = jsta+j-1
-                      do i=1,iend-ista+1
-                      ii = ista+i-1
-                         datapd(i,j,cfld) = GRID1(ii,jj)
-                      enddo
-                   enddo
-                 endif
-              ENDIF
+                     do j=1,jend-jsta+1
+                        jj = jsta+j-1
+                        do i=1,iend-ista+1
+                        ii = ista+i-1
+                           datapd(i,j,cfld) = GRID1(ii,jj)
+                        enddo
+                     enddo
+                  endif
+               ENDIF
             ENDDO
-         endif
+         ENDDO
 
-         if(IGET(469)>0) THEN          ! MWT
-            N=IAVBLFLD(IGET(469))
-            NFDCTL=size(pset%param(N)%level)
-            if(allocated(ITYPEFDLVLCTL)) deallocate(ITYPEFDLVLCTL)
-            allocate(ITYPEFDLVLCTL(NFDCTL))
-            DO IFD = 1,NFDCTL
-               ITYPEFDLVLCTL(IFD)=LVLS(IFD,IGET(469))
-            enddo
-            if(allocated(HTFDCTL)) deallocate(HTFDCTL)
-            allocate(HTFDCTL(NFDCTL))
-            HTFDCTL=pset%param(N)%level
-            allocate(MWTFD(ISTA:IEND,JSTA:JEND,NFDCTL))
-            call FDLVL_MASS(ITYPEFDLVLCTL,NFDCTL,HTFDCTL,MWT,MWTFD)
-            DO IFD = 1,NFDCTL
-              IF (LVLS(IFD,IGET(469))>0) THEN
-!$omp parallel do private(i,j)
-                 DO J=JSTA,JEND
-                 DO I=ISTA,IEND
-                    GRID1(I,J)=MWTFD(I,J,IFD)
-                 ENDDO
-                 ENDDO
-                 if(grib=='grib2') then
-                   cfld=cfld+1
-                   fld_info(cfld)%ifld=IAVBLFLD(IGET(469))
-                   fld_info(cfld)%lvl=LVLSXML(IFD,IGET(469))
-!$omp parallel do private(i,j,ii,jj)
-                   do j=1,jend-jsta+1
-                      jj = jsta+j-1
-                      do i=1,iend-ista+1
-                      ii = ista+i-1
-                         datapd(i,j,cfld) = GRID1(ii,jj)
-                      enddo
-                   enddo
-                 endif
-              ENDIF
-            ENDDO
-         endif
-
-         if(allocated(GTGFD)) deallocate(GTGFD)
-         if(allocated(CATFD)) deallocate(CATFD)
-         if(allocated(MWTFD)) deallocate(MWTFD)
-
+         DEALLOCATE(QIN,QFD)
+         DEALLOCATE(QTYPE)
          if(allocated(ITYPEFDLVLCTL)) deallocate(ITYPEFDLVLCTL)
          if(allocated(HTFDCTL)) deallocate(HTFDCTL)
 
@@ -1635,17 +1671,14 @@
            (IGET(090)>0).OR.(IGET(075)>0).OR.       &
            (IGET(109)>0).OR.(IGET(110)>0).OR.       &
            (IGET(031)>0).OR.(IGET(032)>0).OR.       &
-           (IGET(573)>0).OR.                           &
+           (IGET(573)>0).OR. NEED_IFI    .OR.       &
            (IGET(107)>0).OR.(IGET(091)>0).OR.       &
            (IGET(092)>0).OR.(IGET(093)>0).OR.       &
            (IGET(094)>0).OR.(IGET(095)>0).OR.       &
            (IGET(096)>0).OR.(IGET(097)>0).OR.       &
            (IGET(098)>0).OR.(IGET(221)>0) ) THEN
 !
-           allocate(OMGBND(ista:iend,jsta:jend,NBND),PWTBND(ista:iend,jsta:jend,NBND),  &
-                    QCNVBND(ista:iend,jsta:jend,NBND),LVLBND(ista:iend,jsta:jend,NBND), &
-                    LB2(ista:iend,jsta:jend))
-
+         call allocate_cape_arrays
 !        COMPUTE ETA BOUNDARY LAYER FIELDS.
          CALL BNDLYR(PBND,TBND,QBND,RHBND,UBND,VBND,      &
                      WBND,OMGBND,PWTBND,QCNVBND,LVLBND)
@@ -1977,7 +2010,7 @@
 !     
          IF (IGET(031)>0 .OR. IGET(573)>0 ) THEN
 !           DO J=JSTA,JEND
-!            DO I=1,IM
+!            DO I=ISTA,IEND
 !              EGRID1(I,J) = H99999
 !              EGRID2(I,J) = H99999
 !            ENDDO
@@ -1987,7 +2020,7 @@
 !               CALL OTLFT(PBND(1,1,LBND),TBND(1,1,LBND),      &
 !                    QBND(1,1,LBND),EGRID2)
 !               DO J=JSTA,JEND
-!               DO I=1,IM
+!               DO I=ISTA,IEND
 !                 EGRID1(I,J)=AMIN1(EGRID1(I,J),EGRID2(I,J))
 !               ENDDO
 !               ENDDO
@@ -2049,8 +2082,9 @@
          !  LVLSXML(1,IGET(566)),'LVLSXML(1,IGET(567)=',               &
          !  LVLSXML(1,IGET(567)),'field1=',field1,'field2=',field2
 !
-         IF(FIELD1.OR.FIELD2)THEN
+         IF(FIELD1.OR.FIELD2.OR.NEED_IFI)THEN
            ITYPE = 2
+           call allocate_cape_arrays
 !
 !$omp parallel do private(i,j)
            DO J=JSTA,JEND
@@ -2080,9 +2114,9 @@
            DPBND = 0.
            CALL CALCAPE(ITYPE,DPBND,P1D,T1D,Q1D,LB2,EGRID1,   &
                         EGRID2,EGRID3,EGRID4,EGRID5) 
+
 !
-           IF (IGET(566)>0) THEN
-! dong add missing value for cape
+           IF(IGET(566)>0 .or. NEED_IFI) THEN
               GRID1=spval
 !$omp parallel do private(i,j)
               DO J=JSTA,JEND
@@ -2090,7 +2124,16 @@
                   IF(T1D(I,J) < spval) GRID1(I,J) = EGRID1(I,J)
                 ENDDO
               ENDDO
-             CALL BOUND(GRID1,D00,H99999)
+              CALL BOUND(GRID1,D00,H99999)
+!$omp parallel do private(i,j)
+              DO J=JSTA,JEND
+                DO I=ISTA,IEND
+                  CAPE(I,J) = GRID1(I,J)
+                ENDDO
+              ENDDO
+           ENDIF
+
+           IF (IGET(566)>0) THEN
              if(grib=='grib2') then
               cfld=cfld+1
               fld_info(cfld)%ifld=IAVBLFLD(IGET(566))
@@ -2100,14 +2143,14 @@
                 jj = jsta+j-1
                 do i=1,iend-ista+1
                 ii = ista+i-1
-                  datapd(i,j,cfld) = GRID1(ii,jj)
+                  datapd(i,j,cfld) = CAPE(ii,jj)
                 enddo
               enddo
              endif
            ENDIF
 !
-           IF (IGET(567) > 0) THEN
-! dong add missing value for cape
+           IF (IGET(567) > 0 .or. NEED_IFI) THEN
+! dong add missing value for CIN
               GRID1=spval
 !$omp parallel do private(i,j)
              DO J=JSTA,JEND
@@ -2122,9 +2165,12 @@
              DO J=JSTA,JEND
                DO I=ISTA,IEND
                  IF(T1D(I,J) < spval) GRID1(I,J) = - GRID1(I,J)
+                 CIN(I,J) = GRID1(I,J)
                ENDDO
              ENDDO
-!
+           ENDIF
+
+           IF(IGET(567) > 0) THEN
              if(grib=='grib2') then
               cfld=cfld+1
               fld_info(cfld)%ifld=IAVBLFLD(IGET(567))
@@ -2134,7 +2180,7 @@
                 jj = jsta+j-1
                 do i=1,iend-ista+1
                 ii = ista+i-1
-                  datapd(i,j,cfld) = GRID1(ii,jj)
+                  datapd(i,j,cfld) = CIN(ii,jj)
                 enddo
               enddo
              endif
@@ -3185,7 +3231,7 @@
 !	    
 !            IF (IGET(110)>0) THEN
 !	       DO J=JSTA,JEND
-!               DO I=1,IM
+!               DO I=ISTA,IEND
 !                 GRID1(I,J)=EGRID1(I,J)
 !               ENDDO
 !               ENDDO
@@ -3217,8 +3263,9 @@
            FIELD2=.TRUE.
          ENDIF
 !
-         IF(FIELD1.OR.FIELD2)THEN
+         IF(FIELD1.OR.FIELD2.OR.NEED_IFI)THEN
            ITYPE = 1
+           call allocate_cape_arrays
 !
 !$omp parallel do private(i,j)
            DO J=JSTA,JEND
@@ -3231,15 +3278,15 @@
            DPBND = 300.E2
            CALL CALCAPE(ITYPE,DPBND,P1D,T1D,Q1D,LB2,EGRID1,     &
                         EGRID2,EGRID3,EGRID4,EGRID5)
-           IF (IGET(584)>0) THEN
+           IF (IGET(584)>0 .or. NEED_IFI) THEN
 ! dong add missing value to cin
                GRID1 = spval
 !$omp parallel do private(i,j)
               DO J=JSTA,JEND
                  DO I=ISTA,IEND
                  IF(T1D(I,J) < spval) THEN
-                 GRID1(I,J) = EGRID1(I,J)
-                 IF (SUBMODELNAME == 'RTMA') MUCAPE(I,J)=GRID1(I,J)
+                    GRID1(I,J) = EGRID1(I,J)
+                    IF (SUBMODELNAME == 'RTMA') MUCAPE(I,J)=GRID1(I,J)
                  ENDIF
                  ENDDO
                ENDDO
@@ -3247,7 +3294,13 @@
 !               IF (SUBMODELNAME == 'RTMA') THEN
 !                    CALL BOUND(MUCAPE,D00,H99999)
 !               ENDIF
-               if(grib=='grib2') then
+!$omp parallel do private(i,j)
+              DO J=JSTA,JEND
+                 DO I=ISTA,IEND
+                    CAPE(I,J) = GRID1(I,J)
+                 ENDDO
+              ENDDO
+               if(IGET(584)>0 .and. grib=='grib2') then
                 cfld=cfld+1
                 fld_info(cfld)%ifld=IAVBLFLD(IGET(584))
                 fld_info(cfld)%lvl=LVLSXML(1,IGET(584))
@@ -3263,7 +3316,7 @@
 
            ENDIF
                 
-           IF (IGET(585)>0) THEN
+           IF (IGET(585)>0 .or. NEED_IFI) THEN
 ! dong add missing value to cin
                GRID1 = spval
 !$omp parallel do private(i,j)
@@ -3284,7 +3337,15 @@
                    ENDIF
                  ENDDO
                ENDDO
-               if(grib=='grib2') then
+
+!$omp parallel do private(i,j)
+               DO J=JSTA,JEND
+                 DO I=ISTA,IEND
+                    CIN(I,J) = GRID1(I,J)
+                 ENDDO
+               ENDDO
+
+               if(IGET(585)>0 .and. grib=='grib2') then
                  cfld=cfld+1
                  fld_info(cfld)%ifld=IAVBLFLD(IGET(585))
                  fld_info(cfld)%lvl=LVLSXML(1,IGET(585))
@@ -3548,6 +3609,8 @@
          IF(FIELD1.OR.FIELD2)THEN
            ITYPE = 2
 
+           call allocate_cape_arrays
+
 !
 !$omp parallel do private(i,j)
            DO J=JSTA,JEND
@@ -3563,7 +3626,7 @@
 !          ENDDO
 !          ENDDO
 !          DO J=JSTA,JEND
-!          DO I=1,IM
+!          DO I=ISTA,IEND
                LB2(I,J)  = (LVLBND(I,J,1) + LVLBND(I,J,2) +           &
                             LVLBND(I,J,3))/3
                P1D(I,J)  = (PBND(I,J,1) + PBND(I,J,2) + PBND(I,J,3))/3
@@ -3672,7 +3735,10 @@
                   HELI(ista_2l:iend_2u,jsta_2l:jend_2u,2))
          allocate(LLOW(ista_2l:iend_2u,jsta_2l:jend_2u),LUPP(ista_2l:iend_2u,jsta_2l:jend_2u),   &
                   CANGLE(ista_2l:iend_2u,jsta_2l:jend_2u))
-
+         allocate(LLOW_ZINT(ista_2l:iend_2u,jsta_2l:jend_2u), 					 &
+                  IEQL_ZINT(ista_2l:iend_2u,jsta_2l:jend_2u),Z_TEMP(ista_2l:iend_2u,jsta_2l:jend_2u))
+         allocate(MIDCAL(ista_2l:iend_2u,jsta_2l:jend_2u,1:LM))
+         allocate(Z_MIDCAL(ista_2l:iend_2u,jsta_2l:jend_2u))
        iget1 = IGET(953)
        iget2 = -1
        iget3 = -1
@@ -3680,7 +3746,7 @@
          iget2 = LVLS(1,iget1)
          iget3 = LVLS(2,iget1)
        endif
-      if(me==0) write(0,*) '953 ',iget1,iget2,iget3
+      if(me==0) write(*,*) '953 ',iget1,iget2,iget3
        IF (iget1 > 0 .OR. IGET(162) > 0 .OR. IGET(953) > 0) THEN
          DEPTH(1) = 3000.0
          DEPTH(2) = 1000.0
@@ -3716,7 +3782,6 @@
            DO J=JSTA,JEND
              DO I=ISTA,IEND
                IREC = IREC + 1
-!               WRITE(IUNIT,'(1x,I6,2x,I6,2x,I6,2x,I6)')I,J,LLOW(I,J),LUPP(I,J)
                WRITE(IUNIT,'(1x,I6,2x,I6,2(2x,I6,2x,F12.3))') I, J,                &
                     LLOW(I,J),PMID(I,J,LLOW(I,J)),                                 &
                     LUPP(I,J),PMID(I,J,LUPP(I,J))
@@ -3726,7 +3791,6 @@
          ENDIF
 
 
-!         CALL CALHEL(DEPTH,UST,VST,HELI,USHR1,VSHR1,USHR6,VSHR6)
          CALL CALHEL2(LLOW,LUPP,DEPTH,UST,VST,HELI,CANGLE)
 !                                                  
          IF (iget2 > 0) then
@@ -3734,7 +3798,6 @@
            DO J=JSTA,JEND
              DO I=ISTA,IEND
                GRID1(I,J) = HELI(I,J,1)
-             !  GRID1(I,J) = HELI(I,J,2)
              ENDDO
            ENDDO
            if(grib=='grib2') then
@@ -3794,8 +3857,17 @@
                  ENDIF 
                ENDDO
              ENDDO
-
+              DO J=JSTA,JEND
+               DO I=ISTA,IEND
+                  LLOW(I,J) = EL_BASE(I,J)
+                  LLOW_ZINT(I,J)=ZINT(I,J,LLOW(I,J))
+                  IEQL_ZINT(I,J)=ZINT(I,J,IEQL(I,J))
+                  Z_TEMP(I,J)=LLOW_ZINT(I,J)+D50*(IEQL_ZINT(I,J)-LLOW_ZINT(I,J))
+                  MIDCAL(I,J,L)=ABS(ZINT(I,J,L)-Z_TEMP(I,J))
+               ENDDO
+             ENDDO
            ENDDO
+           Z_MIDCAL=MINLOC(MIDCAL,DIM=3) 
 
 !
 !get surface height
@@ -3903,11 +3975,7 @@
              DO J=JSTA,JEND
                DO I=ISTA,IEND
                   IF(LLOW(I,J)<spval.and.LUPP(I,J)<spval) THEN
-                       MIDCAL=INT(LLOW(I,J)+D50*(LUPP(I,J)-LLOW(I,J)))       
-                                                            !mid-layer 
-                                                            !vertical
-                                                            !index
-                       UVECT(I,J)=UH(I,J,MIDCAL)-UH(I,J,LLOW(I,J))
+                       UVECT(I,J)=UH(I,J,Z_MIDCAL(I,J))-UH(I,J,LLOW(I,J))
                        GRID1(I,J)=UVECT(I,J)
                   ENDIF
                ENDDO
@@ -3932,13 +4000,8 @@
              GRID1=spval
              DO J=JSTA,JEND
                DO I=ISTA,IEND
-                 IF(LLOW(I,J)<spval.and.LUPP(I,J)<spval.and.&
-                 VH(I,J,MIDCAL)<spval.and.VH(I,J,LLOW(I,J))<spval)THEN
-                       MIDCAL=INT(LLOW(I,J)+D50*(IEQL(I,J)-LLOW(I,J)))
-                                                            !mid-layer 
-                                                            !vertical
-                                                            !index
-                       VVECT(I,J)=VH(I,J,MIDCAL)-VH(I,J,LLOW(I,J))
+                 IF(LLOW(I,J)<spval.and.LUPP(I,J)<spval) THEN
+                       VVECT(I,J)=VH(I,J,Z_MIDCAL(I,J))-VH(I,J,LLOW(I,J))
                        GRID1(I,J)=VVECT(I,J)
                  ENDIF
                ENDDO
@@ -3987,6 +4050,13 @@
             ENDIF
 
 ! Effective Helicity
+!$omp parallel do private(i,j)
+           DO J=JSTA,JEND
+             DO I=ISTA,IEND
+                LLOW(I,J) = EL_BASE(I,J)
+                LUPP(I,J) = EL_TOPS(I,J)
+             ENDDO
+           ENDDO
 
        CALL CALHEL3(LLOW,LUPP,EFFUST,EFFVST,ESRH)
 
@@ -4431,7 +4501,7 @@
 
 !           ITYPE = 1
 !           DO J=JSTA,JEND
-!           DO I=1,IM
+!           DO I=ISTA,IEND
 !               LB2(I,J)  = (LVLBND(I,J,1) + LVLBND(I,J,2) +           &
 !                            LVLBND(I,J,3))/3
 !               P1D(I,J)  = (PBND(I,J,1) + PBND(I,J,2) + PBND(I,J,3))/3
@@ -4488,6 +4558,14 @@
        if (allocated(esrh))  deallocate(esrh)
        if (allocated(htsfc)) deallocate(htsfc)
        if (allocated(fshr))  deallocate(fshr)
+       if (allocated(llow_zint)) deallocate(llow_zint)
+       if (allocated(ieql_zint)) deallocate(ieql_zint)
+       if (allocated(z_temp)) deallocate(z_temp)
+       if (allocated(midcal)) deallocate(midcal)
+       if (allocated(z_midcal)) deallocate(z_midcal)
+       if (allocated(el_base)) deallocate(el_base)
+       if (allocated(el_tops)) deallocate(el_tops)
+     
        ENDIF
 
       if (allocated(pbnd))   deallocate(pbnd)
@@ -4499,6 +4577,7 @@
       if (allocated(wbnd))   deallocate(wbnd)
       if (allocated(lvlbnd)) deallocate(lvlbnd)
       if (allocated(lb2))    deallocate(lb2)
+     
 !    
 !
 ! RELATIVE HUMIDITY WITH RESPECT TO PRECIPITABLE WATER
@@ -4522,4 +4601,14 @@
 !     END OF ROUTINE.
 !     
       RETURN
-      END
+   CONTAINS
+
+     subroutine allocate_cape_arrays
+       if(.not.allocated(OMGBND))  allocate(OMGBND(ista:iend,jsta:jend,NBND))
+       if(.not.allocated(PWTBND))  allocate(PWTBND(ista:iend,jsta:jend,NBND))
+       if(.not.allocated(QCNVBND)) allocate(QCNVBND(ista:iend,jsta:jend,NBND))
+       if(.not.allocated(LVLBND))  allocate(LVLBND(ista:iend,jsta:jend,NBND))
+       if(.not.allocated(LB2))     allocate(LB2(ista:iend,jsta:jend))
+     end subroutine allocate_cape_arrays
+
+   END SUBROUTINE MISCLN

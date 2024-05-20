@@ -45,9 +45,9 @@
 !
       call mpi_init(ierr)
       call mpi_comm_rank(MPI_COMM_WORLD,mype,ierr)
-      write(0,*)' mype=',mype,' ierr=',ierr
+      write(*,*)' mype=',mype,' ierr=',ierr
       call mpi_comm_size(MPI_COMM_WORLD,npes,ierr)
-      write(0,*)' npes=',npes,' ierr=',ierr
+      write(*,*)' npes=',npes,' ierr=',ierr
 !     
 !     SPECIFY ONE I/O SERVER AS LONG AS THERE ARE MORE THAN 1 MPI TASK
 !
@@ -167,7 +167,7 @@
 !         istaxx = iendxx + 1
 !         end do
       end if
-      print *,'mype=',mype,'icolor=',icolor
+!      print *,'mype=',mype,'icolor=',icolor
 !
 !     SPLIT THE COMMUNICATOR - THE NEW INTRACOMMUNICATOR FOR ALL TASKS
 !     IS MPI_COMM_COMP. MPI_COMM_WORLD IS STILL AVAILABLE BUT IT DOES
@@ -175,7 +175,7 @@
 !        
       call mpi_comm_dup(MPI_COMM_WORLD,comdup,ierr)
       call mpi_comm_split(comdup,icolor,mype,mpi_comm_comp,ierr)
-      print *,'mype=',mype,'npes=',npes,'after comm split'
+!      print *,'mype=',mype,'npes=',npes,'after comm split'
 !     
 !     AT THIS POINT WE HAVE A NEW COMMUNICATOR, MPI_COMM_COMP,
 !     THAT CAN BE USED BY THE FORECASTS TASKS AND THE I/O SERVER TASKS
