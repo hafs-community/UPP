@@ -58,6 +58,9 @@ if [[ -d /opt/spack-stack ]]; then
   fi
 fi
 
+if [[ "$(hostname)" =~ "wcoss3" ]] ; then
+    MACHINE_ID=nimbus
+fi
 if [[ ${MACHINE_ID} == "UNKNOWN" ]]; then 
    case ${PW_CSP:-} in
       "aws" | "google" | "azure") MACHINE_ID=noaacloud ;;
