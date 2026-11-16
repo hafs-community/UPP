@@ -4,7 +4,7 @@ Load environment to build UPP on nimbus
 
 prepend_path("MODULEPATH", "/opt/intel/oneapi/mpi/2021.18/etc/modulefiles/mpi")
 prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-core-gcc-11.5.0/modules_flat/Core")
-prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-sci-oneapi-2026.1.0/modules_flat/Core")
+prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/modules_flat/Core")
 
 cmake_ver=os.getenv("cmake_ver") or "3.31.11"
 load(pathJoin("cmake", cmake_ver))
@@ -19,7 +19,7 @@ local ufs_modules = {
   {["netcdf-c"]        = "4.9.2"  },
   {["netcdf-fortran"]  = "4.6.1"  },
   {["bacio"]           = "2.4.1"  },
-  {["crtm"]            = "2.4.0.1"},
+  {["crtm"]            = "2.4.0.1-flagfix"},
   {["g2"]              = "3.5.1"  },
   {["g2tmpl"]          = "1.17.0" },
   {["ip"]              = "5.4.0"  },
